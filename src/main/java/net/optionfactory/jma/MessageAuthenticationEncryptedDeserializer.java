@@ -32,7 +32,7 @@ public class MessageAuthenticationEncryptedDeserializer extends JsonDeserializer
         final String value = parser.getValueAsString();
         final String[] split = value.split("\\.");
         if (split.length != 3) {
-            throw new MessageAuthenticationError("invalid");
+            throw new MessageAuthenticationError("invalid parts");
         }
         final byte[] iv = b64dec.decode(split[0]);
         if (iv.length != 12) {

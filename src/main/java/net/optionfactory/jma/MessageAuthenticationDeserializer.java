@@ -32,11 +32,11 @@ public class MessageAuthenticationDeserializer extends JsonDeserializer<Object> 
         final String value = parser.getValueAsString();
         final String[] split = value.split("\\.");
         if (split.length != 4) {
-            throw new MessageAuthenticationError("invalid");
+            throw new MessageAuthenticationError("invalid parts");
         }
         final byte[] salt = b64dec.decode(split[0]);
         if (salt.length != 12) {
-            throw new MessageAuthenticationError("invalid iv");
+            throw new MessageAuthenticationError("invalid salt");
         }
         final long createdAt = Long.parseLong(split[1]);
         final long now = clock.get();
