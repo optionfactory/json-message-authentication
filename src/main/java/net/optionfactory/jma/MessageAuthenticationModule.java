@@ -10,12 +10,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class MessageAuthenticationModule extends Module {
 
     private final Version version;
-    private final SecretKeySpec aesKey;
-    private final SecretKeySpec hmacKey;
-    private final SecureRandom random;
-    private final Base64.Encoder b64enc;
-    private final Base64.Decoder b64dec;
-    private final Supplier<Long> clock;
+    private final MessageAuthenticationOps ops;
 
     public MessageAuthenticationModule(byte[] aesKey, byte[] hmacKey, Supplier<Long> clock) {
         if (aesKey.length != 32) {
@@ -25,12 +20,12 @@ public class MessageAuthenticationModule extends Module {
             throw new MessageAuthenticationError("hmacKey is not 64B long");
         }
         this.version = new Version(1, 0, 0, null, "net.optionfactory", "json-authenticated");
-        this.aesKey = new SecretKeySpec(aesKey, "AES");
-        this.hmacKey = new SecretKeySpec(hmacKey, "HmacSHA256");
-        this.random = new SecureRandom();
-        this.b64dec = Base64.getUrlDecoder();
-        this.b64enc = Base64.getUrlEncoder().withoutPadding();
-        this.clock = clock;
+        this.ops = new MessageAuthenticationOps(
+                new SecretKeySpec(aesKey, "AES"),
+                new SecretKeySpec(hmacKey, "HmacSHA256"),
+                new SecureRandom(),
+                clock
+        );
     }
 
     @Override
@@ -45,8 +40,7 @@ public class MessageAuthenticationModule extends Module {
 
     @Override
     public void setupModule(SetupContext ctx) {
-        ctx.appendAnnotationIntrospector(new MessageAuthenticationAnnotationIntrospector(version, aesKey, hmacKey, random, b64enc, b64dec, clock));
+        ctx.appendAnnotationIntrospector(new MessageAuthenticationAnnotationIntrospector(version, ops));
     }
-
 
 }

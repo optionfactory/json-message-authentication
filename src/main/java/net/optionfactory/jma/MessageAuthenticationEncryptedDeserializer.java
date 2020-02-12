@@ -13,16 +13,12 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class MessageAuthenticationEncryptedDeserializer extends JsonDeserializer<Object> {
 
-    private final SecretKeySpec aesKey;
-    private final Base64.Decoder b64dec;
-    private final Supplier<Long> clock;
+    private final MessageAuthenticationOps ops;
     private final JavaType type;
     private final long validityMs;
 
-    public MessageAuthenticationEncryptedDeserializer(SecretKeySpec aesKey ,Base64.Decoder b64dec, Supplier<Long> clock, JavaType type, long validityMs) {
-        this.aesKey = aesKey;
-        this.b64dec = b64dec;
-        this.clock = clock;
+    public MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, JavaType type, long validityMs) {
+        this.ops = ops;
         this.type = type;
         this.validityMs = validityMs;
     }
@@ -30,23 +26,8 @@ public class MessageAuthenticationEncryptedDeserializer extends JsonDeserializer
     @Override
     public Object deserialize(JsonParser parser, DeserializationContext context) throws IOException, JsonProcessingException {
         final String value = parser.getValueAsString();
-        final String[] split = value.split("\\.");
-        if (split.length != 3) {
-            throw new MessageAuthenticationError("invalid parts");
-        }
-        final byte[] iv = b64dec.decode(split[0]);
-        if (iv.length != 12) {
-            throw new MessageAuthenticationError("invalid iv");
-        }
-        final long timestamp = Long.parseLong(split[1]);
-        final long now = clock.get();
-        if (validityMs != 0 && now - validityMs > timestamp) {
-            throw new MessageAuthenticationError("expired");
-        }
-        final byte[] cipherText = b64dec.decode(split[2]);
-
-        final String clearText = MessageAuthenticationOps.decrypt(iv, aesKey, timestamp, cipherText);
-        return ((ObjectMapper) parser.getCodec()).readValue(clearText, type);
+        final var clearTextBytes = ops.authenticateThenDecrypt(value, validityMs);
+        return ((ObjectMapper) parser.getCodec()).readValue(clearTextBytes, type);
     }
 
 }
