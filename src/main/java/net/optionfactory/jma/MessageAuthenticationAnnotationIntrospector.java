@@ -16,11 +16,11 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
 
     @Override
     public Object findDeserializer(Annotated am) {
-        final MessageAuthenticationMessage annotation = am.getAnnotation(MessageAuthenticationMessage.class);
+        final MessageAuthentication annotation = am.getAnnotation(MessageAuthentication.class);
         if (annotation == null) {
             return null;
         }
-        if (annotation.mode() == MessageAuthenticationMessage.Mode.AUTHENTICATED) {
+        if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
             return new MessageAuthenticationDeserializer(ops, am.getType(), annotation.validityMs());
         }
         return new MessageAuthenticationEncryptedDeserializer(ops, am.getType(), annotation.validityMs());
@@ -29,11 +29,11 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
 
     @Override
     public Object findSerializer(Annotated am) {
-        final MessageAuthenticationMessage annotation = am.getAnnotation(MessageAuthenticationMessage.class);
+        final MessageAuthentication annotation = am.getAnnotation(MessageAuthentication.class);
         if (annotation == null) {
             return null;
         }
-        if (annotation.mode() == MessageAuthenticationMessage.Mode.AUTHENTICATED) {
+        if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
             return new MessageAuthenticationSerializer(ops);
         }
         return new MessageAuthenticationEncryptedSerializer(ops);

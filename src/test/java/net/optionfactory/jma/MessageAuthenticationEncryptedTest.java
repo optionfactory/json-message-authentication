@@ -3,7 +3,7 @@ package net.optionfactory.jma;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Base64;
-import net.optionfactory.jma.MessageAuthenticationMessage.Mode;
+import net.optionfactory.jma.MessageAuthentication.Mode;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -16,7 +16,7 @@ public class MessageAuthenticationEncryptedTest {
 
         public String field;
 
-        @MessageAuthenticationMessage(mode = Mode.AUTHENTICATED_ENCRYPTED)
+        @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED)
         public String toBeEncrypted;
     }
 
@@ -24,7 +24,7 @@ public class MessageAuthenticationEncryptedTest {
 
         public String field;
 
-        @MessageAuthenticationMessage(mode = Mode.AUTHENTICATED_ENCRYPTED)
+        @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED)
         public NestedObject toBeEncrypted;
 
         public static class NestedObject {

@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 @Documented
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface MessageAuthenticationMessage {
+public @interface MessageAuthentication {
 
     public enum Mode {
         AUTHENTICATED, AUTHENTICATED_ENCRYPTED;
