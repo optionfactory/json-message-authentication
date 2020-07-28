@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.function.Supplier;
 
 public class MessageAuthenticationEncryptedSerializer extends JsonSerializer<Object> {
 

@@ -7,9 +7,6 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.function.Supplier;
-import javax.crypto.spec.SecretKeySpec;
 
 public class MessageAuthenticationEncryptedDeserializer extends JsonDeserializer<Object> {
 
