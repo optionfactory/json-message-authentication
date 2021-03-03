@@ -34,6 +34,27 @@ public class MessageAuthenticationOps {
         this.clock = clock;
     }
 
+    public static MessageAuthenticationOps create(byte[] aesKey, byte[] hmacKey, SecureRandom random, Supplier<Long> clock) {
+        if (aesKey.length != 32) {
+            throw new MessageAuthenticationError("aesKey must be 32B long");
+        }
+        if (hmacKey.length != 64) {
+            throw new MessageAuthenticationError("hmacKey is not 64B long");
+        }
+        return new MessageAuthenticationOps(
+                new SecretKeySpec(aesKey, "AES"),
+                new SecretKeySpec(hmacKey, "HmacSHA256"),
+                random,
+                clock
+        );
+    }
+
+    public static MessageAuthenticationOps create(String encodedAesKey, String encodedHmacKey, SecureRandom random, Supplier<Long> clock, KeyEncoding keyEncoding) {
+        final var aesKey = keyEncoding.decode(encodedAesKey);
+        final var hmacKey = keyEncoding.decode(encodedHmacKey);
+        return MessageAuthenticationOps.create(aesKey, hmacKey, random, clock);
+    }
+
     private byte[] randomBytes(int len) {
         final byte[] iv = new byte[len];
         random.nextBytes(iv);
@@ -144,6 +165,34 @@ public class MessageAuthenticationOps {
         final var computedHmacValue = sha256.doFinal(clearText);
         MessageAuthenticationError.enforce(Arrays.equals(computedHmacValue, hmacValue), "tampering");
         return clearText;
+    }
+
+    public enum KeyEncoding {
+        URL_SAFE_BASE_64,
+        BASE_64,
+        HEX;
+
+        public byte[] decode(String source) {
+            switch (this) {
+                case URL_SAFE_BASE_64:
+                    return Base64.getUrlDecoder().decode(source);
+                case BASE_64:
+                    return Base64.getDecoder().decode(source);
+                case HEX:
+                    if (source.length() % 2 == 1) {
+                        throw new IllegalArgumentException(String.format("Hex encoded value has an odd length: %s", source));
+                    }
+                    final byte[] bytes = new byte[source.length() / 2];
+                    for (int i = 0; i != source.length() / 2; ++i) {
+                        final int d1 = Character.digit(source.charAt(i * 2 + 0), 16);
+                        final int d2 = Character.digit(source.charAt(i * 2 + 1), 16);
+                        bytes[i] = (byte) ((d1 << 4) + d2);
+                    }
+                    return bytes;
+                default:
+                    throw new IllegalArgumentException(String.format("Unkown encoding: %s", this));
+            }
+        }
     }
 
 }

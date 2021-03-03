@@ -3,8 +3,9 @@ package net.optionfactory.jma;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.Base64;
+import java.security.SecureRandom;
 import net.optionfactory.jma.MessageAuthentication.Mode;
+import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -22,10 +23,14 @@ public class MessageAuthenticationTest {
 
     @Before
     public void setup() {
-        final var aesKey = Base64.getDecoder().decode("hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA");
-        final var hmacKey = Base64.getDecoder().decode("CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA");
+        final var maops = MessageAuthenticationOps.create(
+                "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA", 
+                "CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA", 
+                new SecureRandom(), 
+                System::currentTimeMillis, KeyEncoding.BASE_64);
+        
         final var m = new ObjectMapper();
-        m.registerModule(new MessageAuthenticationModule(aesKey, hmacKey, System::currentTimeMillis));
+        m.registerModule(new MessageAuthenticationModule(maops));
         this.mapper = m;
     }
 
