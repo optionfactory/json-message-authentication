@@ -1,4 +1,4 @@
-package net.optionfactory.jma;
+ package net.optionfactory.jma;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
