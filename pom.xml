@@ -7,7 +7,7 @@
     <packaging>jar</packaging>
     <name>json-message-authentication</name>
     <description>A JSON message authentication module for jackson</description>
-    <url>https://bitbucket.org/optionfactory/json-message-authentication</url>
+    <url>https://github.com/optionfactory/json-message-authentication</url>
     <licenses>
         <license>
             <name>Simplified BSD License</name>
@@ -16,9 +16,9 @@
         </license>
     </licenses>
     <scm>
-        <connection>scm:git:https://bitbucket.org/optionfactory/json-message-authentication</connection>
-        <developerConnection>scm:git:https://bitbucket.org/optionfactory/json-message-authentication</developerConnection>
-        <url>https://bitbucket.org/optionfactory/json-message-authentication</url>
+        <connection>scm:git:https://github.com/optionfactory/json-message-authentication</connection>
+        <developerConnection>scm:git:https://github.com/optionfactory/json-message-authentication</developerConnection>
+        <url>https://github.com/optionfactory/json-message-authentication</url>
     </scm>
     <distributionManagement>
         <snapshotRepository>
