@@ -1,7 +1,5 @@
 package net.optionfactory.jma;
 
-import java.util.Arrays;
-import java.util.Base64;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import org.junit.Assert;
 import org.junit.Test;
