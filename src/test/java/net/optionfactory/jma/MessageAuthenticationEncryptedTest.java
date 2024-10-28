@@ -13,27 +13,17 @@ public class MessageAuthenticationEncryptedTest {
 
     private ObjectMapper mapper;
 
-    public static class BeanWithString {
+    public record RecordWithString(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED) String toBeEncrypted) {
 
-        public String field;
-
-        @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED)
-        public String toBeEncrypted;
     }
 
-    public static class BeanWithObject {
+    public record RecordWithObject(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED)
+            NestedObject toBeEncrypted) {
 
-        public String field;
+    }
 
-        @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED)
-        public NestedObject toBeEncrypted;
+    public record NestedObject(String value1, String value2, String value3) {
 
-        public static class NestedObject {
-
-            public String value1;
-            public String value2;
-            public String value3;
-        }
     }
 
     @Before
@@ -51,39 +41,32 @@ public class MessageAuthenticationEncryptedTest {
     @Test
     public void testString() throws JsonProcessingException {
 
-        final var src = new BeanWithString();
-        src.field = "1";
-        src.toBeEncrypted = "11111";
+        final var src = new RecordWithString("1", "11111");
 
         final var out = mapper.writeValueAsString(src);
-        final var got = mapper.readValue(out, BeanWithString.class);
+        final var got = mapper.readValue(out, RecordWithString.class);
 
         System.out.format("serialized: %s%ndeserialized: %s%n", out, got);
 
-        Assert.assertFalse(out.contains(src.toBeEncrypted));
-        Assert.assertEquals(src.toBeEncrypted, got.toBeEncrypted);
+        Assert.assertFalse(out.contains(src.toBeEncrypted()));
+        Assert.assertEquals(src.toBeEncrypted(), got.toBeEncrypted());
     }
 
     @Test
     public void testObject() throws JsonProcessingException {
-        final var src = new BeanWithObject();
-        src.field = "1";
-        src.toBeEncrypted = new BeanWithObject.NestedObject();
-        src.toBeEncrypted.value1 = "11111";
-        src.toBeEncrypted.value2 = "22222";
-        src.toBeEncrypted.value3 = "33333";
+        final var src = new RecordWithObject("1", new NestedObject("11111", "22222", "33333"));
 
         final var out = mapper.writeValueAsString(src);
-        final var got = mapper.readValue(out, BeanWithObject.class);
+        final var got = mapper.readValue(out, RecordWithObject.class);
 
         System.out.format("serialized: %s%ndeserialized: %s%n", out, got);
 
-        Assert.assertFalse(out.contains(src.toBeEncrypted.value1));
-        Assert.assertFalse(out.contains(src.toBeEncrypted.value2));
-        Assert.assertFalse(out.contains(src.toBeEncrypted.value3));
-        Assert.assertEquals(src.toBeEncrypted.value1, got.toBeEncrypted.value1);
-        Assert.assertEquals(src.toBeEncrypted.value2, got.toBeEncrypted.value2);
-        Assert.assertEquals(src.toBeEncrypted.value3, got.toBeEncrypted.value3);
+        Assert.assertFalse(out.contains(src.toBeEncrypted().value1()));
+        Assert.assertFalse(out.contains(src.toBeEncrypted().value2()));
+        Assert.assertFalse(out.contains(src.toBeEncrypted().value3()));
+        Assert.assertEquals(src.toBeEncrypted().value1(), got.toBeEncrypted().value1());
+        Assert.assertEquals(src.toBeEncrypted().value2(), got.toBeEncrypted().value2());
+        Assert.assertEquals(src.toBeEncrypted().value3(), got.toBeEncrypted().value3());
     }
 
 }
