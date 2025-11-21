@@ -1,12 +1,11 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
-public class MessageAuthenticationEncryptedSerializer extends JsonSerializer<Object> {
+public class MessageAuthenticationEncryptedSerializer extends ValueSerializer<Object> {
 
     private final MessageAuthenticationOps ops;
 
@@ -15,13 +14,13 @@ public class MessageAuthenticationEncryptedSerializer extends JsonSerializer<Obj
     }
 
     @Override
-    public void serialize(Object value, JsonGenerator gen, SerializerProvider sp) throws IOException {
+    public void serialize(Object value, JsonGenerator gen, SerializationContext sp) {
         final var utf8os = new ByteArrayOutputStream();
-        try (final var nestedGenerator = gen.getCodec().getFactory().createGenerator(utf8os)) {
-            sp.defaultSerializeValue(value, nestedGenerator);
+        try (final var nestedGenerator = sp.tokenStreamFactory().createGenerator(gen.objectWriteContext(), utf8os)) {
+            nestedGenerator.writePOJO(value);
         }
         final var authenticatedCipherText = ops.encryptThenAuthenticate(utf8os.toByteArray());
-        gen.writeObject(authenticatedCipherText);
+        gen.writePOJO(authenticatedCipherText);
     }
 
 }

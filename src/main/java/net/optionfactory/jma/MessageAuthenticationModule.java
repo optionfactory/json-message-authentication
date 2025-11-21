@@ -1,15 +1,15 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.databind.Module;
+import tools.jackson.core.Version;
+import tools.jackson.databind.JacksonModule;
 
-public class MessageAuthenticationModule extends Module {
+public class MessageAuthenticationModule extends JacksonModule {
 
     private final Version version;
     private final MessageAuthenticationOps ops;
 
     public MessageAuthenticationModule(MessageAuthenticationOps ops) {
-        this.version = new Version(1, 0, 0, null, "net.optionfactory", "json-authenticated");
+        this.version = new Version(2, 0, 0, null, "net.optionfactory", "json-authenticated");
         this.ops = ops;
     }
 
@@ -27,5 +27,4 @@ public class MessageAuthenticationModule extends Module {
     public void setupModule(SetupContext ctx) {
         ctx.appendAnnotationIntrospector(new MessageAuthenticationAnnotationIntrospector(version, ops));
     }
-
 }

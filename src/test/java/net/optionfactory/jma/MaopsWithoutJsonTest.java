@@ -1,6 +1,5 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import org.junit.Assert;
 import org.junit.Before;
@@ -9,10 +8,11 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import tools.jackson.databind.json.JsonMapper;
 
 public class MaopsWithoutJsonTest {
 
-    private ObjectMapper mapper;
+    private JsonMapper mapper;
     private MessageAuthenticationOps maops;
 
     public record NestedObject(String value1, String value2, String value3) {
@@ -25,7 +25,7 @@ public class MaopsWithoutJsonTest {
                 "CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA==",
                 new SecureRandom(),
                 System::currentTimeMillis, KeyEncoding.BASE_64);
-        this.mapper = new ObjectMapper();
+        this.mapper = new JsonMapper();
     }
 
     @Test

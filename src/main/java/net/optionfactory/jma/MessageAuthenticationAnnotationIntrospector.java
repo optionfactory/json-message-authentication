@@ -1,8 +1,9 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.core.Version;
-import com.fasterxml.jackson.databind.AnnotationIntrospector;
-import com.fasterxml.jackson.databind.introspect.Annotated;
+import tools.jackson.core.Version;
+import tools.jackson.databind.AnnotationIntrospector;
+import tools.jackson.databind.cfg.MapperConfig;
+import tools.jackson.databind.introspect.Annotated;
 
 public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntrospector {
 
@@ -15,11 +16,12 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
     }
 
     @Override
-    public Object findDeserializer(Annotated am) {
+    public Object findDeserializer(MapperConfig<?> config, Annotated am) {
         final MessageAuthentication annotation = am.getAnnotation(MessageAuthentication.class);
         if (annotation == null) {
             return null;
         }
+
         if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
             return new MessageAuthenticationDeserializer(ops, am.getType(), annotation.validityMs());
         }
@@ -28,7 +30,7 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
     }
 
     @Override
-    public Object findSerializer(Annotated am) {
+    public Object findSerializer(MapperConfig<?> config, Annotated am) {
         final MessageAuthentication annotation = am.getAnnotation(MessageAuthentication.class);
         if (annotation == null) {
             return null;

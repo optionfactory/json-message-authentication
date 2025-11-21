@@ -1,14 +1,11 @@
- package net.optionfactory.jma;
+package net.optionfactory.jma;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JavaType;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.JavaType;
+import tools.jackson.databind.ValueDeserializer;
 
-public class MessageAuthenticationDeserializer extends JsonDeserializer<Object> {
+public class MessageAuthenticationDeserializer extends ValueDeserializer<Object> {
 
     private final MessageAuthenticationOps ops;
     private final JavaType type;
@@ -21,10 +18,12 @@ public class MessageAuthenticationDeserializer extends JsonDeserializer<Object> 
     }
 
     @Override
-    public Object deserialize(JsonParser parser, DeserializationContext context) throws IOException, JsonProcessingException {
+    public Object deserialize(JsonParser parser, DeserializationContext context) {
         final var value = parser.getValueAsString();
         final var verifiedBytes = ops.verifyAndDecode(value, validityMs);
-        return ((ObjectMapper) parser.getCodec()).readValue(verifiedBytes, type);
+        try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), verifiedBytes)) {
+            return nestedParser.readValueAs(type);
+        }
     }
 
 }

@@ -1,12 +1,11 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
-public class MessageAuthenticationSerializer extends JsonSerializer<Object> {
+public class MessageAuthenticationSerializer extends ValueSerializer<Object> {
 
     private final MessageAuthenticationOps ops;
 
@@ -15,16 +14,18 @@ public class MessageAuthenticationSerializer extends JsonSerializer<Object> {
     }
 
     @Override
-    public void serialize(Object value, JsonGenerator gen, SerializerProvider sp) throws IOException {
+    public void serialize(Object value, JsonGenerator gen, SerializationContext sp) {
         final var utf8os = new ByteArrayOutputStream();
-        try (final var nestedGenerator = gen.getCodec().getFactory().createGenerator(utf8os)) {
-            sp.defaultSerializeValue(value, nestedGenerator);
+
+        
+        try (final var nestedGenerator = sp.tokenStreamFactory().createGenerator(gen.objectWriteContext(), utf8os)) {
+            nestedGenerator.writePOJO(value);
         }
         final var clearTextBytes = utf8os.toByteArray();
         final var authenticatedMessage = ops.authenticate(clearTextBytes);
         gen.writeStartObject();
-        gen.writeObjectField("msg", value);
-        gen.writeStringField("authmsg", authenticatedMessage);
+        gen.writePOJOProperty("msg", value);
+        gen.writeStringProperty("authmsg", authenticatedMessage);
         gen.writeEndObject();
     }
 

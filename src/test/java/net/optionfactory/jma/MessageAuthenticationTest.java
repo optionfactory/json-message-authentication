@@ -1,18 +1,19 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.security.SecureRandom;
+import java.time.Instant;
 import net.optionfactory.jma.MessageAuthentication.Mode;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 
 public class MessageAuthenticationTest {
 
-    private ObjectMapper mapper;
+    private JsonMapper mapper;
 
     public record RecordWithString(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED) String toBeAuthenticated) {
 
@@ -26,28 +27,49 @@ public class MessageAuthenticationTest {
                 new SecureRandom(),
                 System::currentTimeMillis, KeyEncoding.BASE_64);
 
-        final var m = new ObjectMapper();
-        m.registerModule(new MessageAuthenticationModule(maops));
-        this.mapper = m;
+        this.mapper = JsonMapper.builder()
+                .addModule(new MessageAuthenticationModule(maops)).build();
     }
 
     @Test
-    public void exampleWithAuthenticatedField() throws JsonProcessingException {
+    public void exampleWithAuthenticatedField() {
 
         final var src = new RecordWithString("1", "11111");
 
         //server serializes something like:
         // {"field":"1","toBeAuthenticated":{"msg":"11111","authmsg":"slplEh02MR5ma0MH.1581272779124.Vna0jlMhqL3gXSmekglnEa31h-UdvwVgvlSEuq55BwY.IjExMTExIg"}}
         final var out = mapper.writeValueAsString(src);
-        //client can use "msg" and can send back "auth" when needed
+        //client can use "msg" and can send back "authmsg" when needed
         final var toBeModified = mapper.readValue(out, ObjectNode.class);
         toBeModified.set("toBeAuthenticated", toBeModified.get("toBeAuthenticated").get("authmsg"));
-        final String got = new ObjectMapper().writeValueAsString(toBeModified);
+        final String got = new JsonMapper().writeValueAsString(toBeModified);
         //server received the auth field, verifies it and it gets automatically mapped
         final var gotFromClient = mapper.readValue(got, RecordWithString.class);
         Assert.assertEquals("1", gotFromClient.field());
         Assert.assertEquals("11111", gotFromClient.toBeAuthenticated());
 
+    }
+
+    public record RecordWithAnnotatedObject(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED) AnnotatedObject toBeAuthenticated) {
+
+    }
+
+    public record AnnotatedObject(@JsonFormat(shape = JsonFormat.Shape.NUMBER) Instant value) {
+
+    }
+
+    @Test
+    public void testNestedObjectWithAnnotations() {
+        final var src = new RecordWithAnnotatedObject("1", new AnnotatedObject(Instant.parse("1970-01-01T00:00:00.000Z")));
+
+        final var out = mapper.writeValueAsString(src);
+
+        final var toBeModified = mapper.readValue(out, ObjectNode.class);
+        toBeModified.set("toBeAuthenticated", toBeModified.get("toBeAuthenticated").get("authmsg"));
+
+        final var got = mapper.readValue(new JsonMapper().writeValueAsString(toBeModified), RecordWithAnnotatedObject.class);
+
+        Assert.assertEquals(src.toBeAuthenticated().value(), got.toBeAuthenticated().value());
     }
 
 }
