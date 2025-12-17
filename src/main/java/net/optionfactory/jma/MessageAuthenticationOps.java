@@ -3,6 +3,7 @@ package net.optionfactory.jma;
 import java.nio.ByteBuffer;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
@@ -121,7 +122,7 @@ public class MessageAuthenticationOps {
         mac.update(ByteBuffer.allocate(8).putLong(createdAt).array());
         mac.update(iv);
         final var computedMessageHmac = mac.doFinal(cipherText);
-        MessageAuthenticationError.enforce(Arrays.equals(computedMessageHmac, receivedHmac), "tampering");
+        MessageAuthenticationError.enforce(MessageDigest.isEqual(computedMessageHmac, receivedHmac), "tampering");
         try {
             return initAesCbcPkcs7(iv, Cipher.DECRYPT_MODE).doFinal(cipherText);
         } catch (IllegalBlockSizeException | BadPaddingException ex) {
