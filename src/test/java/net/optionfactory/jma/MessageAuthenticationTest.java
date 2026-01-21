@@ -5,9 +5,9 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import net.optionfactory.jma.MessageAuthentication.Mode;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 import tools.jackson.databind.node.ObjectNode;
 
@@ -19,7 +19,7 @@ public class MessageAuthenticationTest {
 
     }
 
-    @Before
+    @BeforeEach
     public void setup() {
         final var maops = MessageAuthenticationOps.create(
                 "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA",
@@ -45,8 +45,8 @@ public class MessageAuthenticationTest {
         final String got = new JsonMapper().writeValueAsString(toBeModified);
         //server received the auth field, verifies it and it gets automatically mapped
         final var gotFromClient = mapper.readValue(got, RecordWithString.class);
-        Assert.assertEquals("1", gotFromClient.field());
-        Assert.assertEquals("11111", gotFromClient.toBeAuthenticated());
+        Assertions.assertEquals("1", gotFromClient.field());
+        Assertions.assertEquals("11111", gotFromClient.toBeAuthenticated());
 
     }
 
@@ -69,7 +69,7 @@ public class MessageAuthenticationTest {
 
         final var got = mapper.readValue(new JsonMapper().writeValueAsString(toBeModified), RecordWithAnnotatedObject.class);
 
-        Assert.assertEquals(src.toBeAuthenticated().value(), got.toBeAuthenticated().value());
+        Assertions.assertEquals(src.toBeAuthenticated().value(), got.toBeAuthenticated().value());
     }
 
 }

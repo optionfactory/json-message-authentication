@@ -1,13 +1,13 @@
 package net.optionfactory.jma;
 
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 public class MaopsWithoutJsonTest {
@@ -18,7 +18,7 @@ public class MaopsWithoutJsonTest {
     public record NestedObject(String value1, String value2, String value3) {
     }
 
-    @Before
+    @BeforeEach
     public void setup() {
         this.maops = MessageAuthenticationOps.create(
                 "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA=",
@@ -35,7 +35,7 @@ public class MaopsWithoutJsonTest {
         final var asString = maops.encryptThenAuthenticate(out.getBytes(StandardCharsets.UTF_8));
         final var clearText = maops.authenticateThenDecrypt(asString, 5000);
         final var deserialized = mapper.readValue(clearText, NestedObject.class);
-        Assert.assertEquals(src, deserialized);
+        Assertions.assertEquals(src, deserialized);
     }
 
     @Test
@@ -45,6 +45,6 @@ public class MaopsWithoutJsonTest {
         final var asString = maops.authenticate(out.getBytes(StandardCharsets.UTF_8));
         final var clearText = maops.verifyAndDecode(asString, 5000);
         final var deserialized = mapper.readValue(clearText, NestedObject.class);
-        Assert.assertEquals(src, deserialized);
+        Assertions.assertEquals(src, deserialized);
     }
 }

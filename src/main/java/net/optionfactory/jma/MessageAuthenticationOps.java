@@ -164,7 +164,7 @@ public class MessageAuthenticationOps {
         sha256.update(ByteBuffer.allocate(8).putLong(createdAt).array());
         sha256.update(salt);
         final var computedHmacValue = sha256.doFinal(clearText);
-        MessageAuthenticationError.enforce(Arrays.equals(computedHmacValue, hmacValue), "tampering");
+        MessageAuthenticationError.enforce(MessageDigest.isEqual(computedHmacValue, hmacValue), "tampering");
         return clearText;
     }
 

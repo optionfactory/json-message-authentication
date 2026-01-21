@@ -1,8 +1,8 @@
 package net.optionfactory.jma;
 
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class KeyEncodingTest {
 
@@ -15,7 +15,7 @@ public class KeyEncodingTest {
             (byte) 0xcc,
             0x00
         };
-        Assert.assertArrayEquals(expected, got);
+        Assertions.assertArrayEquals(expected, got);
     }
 
     @Test
@@ -27,7 +27,7 @@ public class KeyEncodingTest {
             (byte) 0xcc,
             0x00
         };
-        Assert.assertArrayEquals(expected, got);
+        Assertions.assertArrayEquals(expected, got);
     }
 
     @Test
@@ -39,7 +39,7 @@ public class KeyEncodingTest {
             (byte) 0xcc,
             0x00
         };
-        Assert.assertArrayEquals(expected, got);
+        Assertions.assertArrayEquals(expected, got);
     }
 
     @Test
@@ -51,7 +51,7 @@ public class KeyEncodingTest {
             (byte) 0xcc,
             0x00
         };
-        Assert.assertArrayEquals(expected, got);
+        Assertions.assertArrayEquals(expected, got);
 
     }
 
@@ -66,11 +66,13 @@ public class KeyEncodingTest {
             (byte) 0xaa,
             (byte) 0xff
         };
-        Assert.assertArrayEquals(expected, got);
+        Assertions.assertArrayEquals(expected, got);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void tryingToDecodeOddLengthHexEncodedYieldException() {
-        final byte[] got = KeyEncoding.HEX.decode("abc");
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            KeyEncoding.HEX.decode("abc");
+        });        
     }
 }

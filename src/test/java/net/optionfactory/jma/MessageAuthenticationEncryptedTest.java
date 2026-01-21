@@ -1,13 +1,11 @@
 package net.optionfactory.jma;
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import java.security.SecureRandom;
-import java.time.Instant;
 import net.optionfactory.jma.MessageAuthentication.Mode;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import tools.jackson.databind.json.JsonMapper;
 
 public class MessageAuthenticationEncryptedTest {
@@ -25,7 +23,7 @@ public class MessageAuthenticationEncryptedTest {
     public record NestedObject(String value1, String value2, String value3) {
 
     }
-    @Before
+    @BeforeEach
     public void setup() {
         final var maops = MessageAuthenticationOps.create(
                 "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA=",
@@ -45,8 +43,8 @@ public class MessageAuthenticationEncryptedTest {
 
         System.out.format("serialized: %s%ndeserialized: %s%n", out, got);
 
-        Assert.assertFalse(out.contains(src.toBeEncrypted()));
-        Assert.assertEquals(src.toBeEncrypted(), got.toBeEncrypted());
+        Assertions.assertFalse(out.contains(src.toBeEncrypted()));
+        Assertions.assertEquals(src.toBeEncrypted(), got.toBeEncrypted());
     }
 
     @Test
@@ -58,11 +56,11 @@ public class MessageAuthenticationEncryptedTest {
 
         System.out.format("serialized: %s%ndeserialized: %s%n", out, got);
 
-        Assert.assertFalse(out.contains(src.toBeEncrypted().value1()));
-        Assert.assertFalse(out.contains(src.toBeEncrypted().value2()));
-        Assert.assertFalse(out.contains(src.toBeEncrypted().value3()));
-        Assert.assertEquals(src.toBeEncrypted().value1(), got.toBeEncrypted().value1());
-        Assert.assertEquals(src.toBeEncrypted().value2(), got.toBeEncrypted().value2());
-        Assert.assertEquals(src.toBeEncrypted().value3(), got.toBeEncrypted().value3());
+        Assertions.assertFalse(out.contains(src.toBeEncrypted().value1()));
+        Assertions.assertFalse(out.contains(src.toBeEncrypted().value2()));
+        Assertions.assertFalse(out.contains(src.toBeEncrypted().value3()));
+        Assertions.assertEquals(src.toBeEncrypted().value1(), got.toBeEncrypted().value1());
+        Assertions.assertEquals(src.toBeEncrypted().value2(), got.toBeEncrypted().value2());
+        Assertions.assertEquals(src.toBeEncrypted().value3(), got.toBeEncrypted().value3());
     }
 }
