@@ -5,6 +5,9 @@ import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
+import net.optionfactory.jma.singleuse.InMemorySingleUseStore;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +24,7 @@ public class MaopsWithoutJsonTest {
     @BeforeEach
     public void setup() {
         this.maops = MessageAuthenticationOps.create(
+                new InMemorySingleUseStore(Clock.systemUTC()::millis),
                 "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA=",
                 "CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA==",
                 new SecureRandom(),
@@ -33,7 +37,7 @@ public class MaopsWithoutJsonTest {
         final var src = new NestedObject("11111", "22222", "33333");
         final var out = mapper.writeValueAsString(src);
         final var asString = maops.encryptThenAuthenticate(out.getBytes(StandardCharsets.UTF_8));
-        final var clearText = maops.authenticateThenDecrypt(asString, 5000);
+        final var clearText = maops.authenticateThenDecrypt(asString, Duration.ofSeconds(5));
         final var deserialized = mapper.readValue(clearText, NestedObject.class);
         Assertions.assertEquals(src, deserialized);
     }
@@ -43,7 +47,7 @@ public class MaopsWithoutJsonTest {
         final var src = new NestedObject("11111", "22222", "33333");
         final var out = mapper.writeValueAsString(src);
         final var asString = maops.authenticate(out.getBytes(StandardCharsets.UTF_8));
-        final var clearText = maops.verifyAndDecode(asString, 5000);
+        final var clearText = maops.verifyAndDecode(asString, Duration.ofSeconds(5));
         final var deserialized = mapper.readValue(clearText, NestedObject.class);
         Assertions.assertEquals(src, deserialized);
     }

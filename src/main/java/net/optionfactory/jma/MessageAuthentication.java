@@ -5,6 +5,7 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.time.temporal.ChronoUnit;
 
 @Documented
 @Target({ElementType.FIELD, ElementType.PARAMETER})
@@ -17,5 +18,7 @@ public @interface MessageAuthentication {
 
     Mode mode() default Mode.AUTHENTICATED_ENCRYPTED;
 
-    long validityMs() default 0;
+    long validity() default 6;
+
+    ChronoUnit unit() default ChronoUnit.HOURS;
 }

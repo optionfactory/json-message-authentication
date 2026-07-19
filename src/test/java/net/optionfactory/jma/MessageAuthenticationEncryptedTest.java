@@ -1,8 +1,10 @@
 package net.optionfactory.jma;
 
 import java.security.SecureRandom;
+import java.time.Clock;
 import net.optionfactory.jma.MessageAuthentication.Mode;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
+import net.optionfactory.jma.singleuse.InMemorySingleUseStore;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,6 +28,7 @@ public class MessageAuthenticationEncryptedTest {
     @BeforeEach
     public void setup() {
         final var maops = MessageAuthenticationOps.create(
+                new InMemorySingleUseStore(Clock.systemUTC()::millis),
                 "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA=",
                 "CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA==",
                 new SecureRandom(),
