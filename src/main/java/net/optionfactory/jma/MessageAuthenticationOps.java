@@ -6,7 +6,6 @@ import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.function.Supplier;
 import javax.crypto.BadPaddingException;
@@ -185,8 +184,13 @@ public class MessageAuthenticationOps {
                     }
                     final byte[] bytes = new byte[source.length() / 2];
                     for (int i = 0; i != source.length() / 2; ++i) {
-                        final int d1 = Character.digit(source.charAt(i * 2 + 0), 16);
-                        final int d2 = Character.digit(source.charAt(i * 2 + 1), 16);
+                        final char c1 = source.charAt(i * 2 + 0);
+                        final char c2 = source.charAt(i * 2 + 1);
+                        final int d1 = Character.digit(c1, 16);
+                        final int d2 = Character.digit(c2, 16);
+                        if (d1 == -1 || d2 == -1) {
+                            throw new IllegalArgumentException(String.format("Invalid hex character found in string: '%s' or '%s'", c1, c2));
+                        }
                         bytes[i] = (byte) ((d1 << 4) + d2);
                     }
                     return bytes;
