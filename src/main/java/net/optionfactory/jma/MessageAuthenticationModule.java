@@ -9,7 +9,7 @@ public class MessageAuthenticationModule extends JacksonModule {
     private final MessageAuthenticationOps ops;
 
     public MessageAuthenticationModule(MessageAuthenticationOps ops) {
-        this.version = new Version(2, 0, 0, null, "net.optionfactory", "json-authenticated");
+        this.version = new Version(3, 0, 0, null, "net.optionfactory", "json-authenticated");
         this.ops = ops;
     }
 
