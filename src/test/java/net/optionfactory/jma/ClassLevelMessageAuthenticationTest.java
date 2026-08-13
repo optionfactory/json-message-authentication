@@ -34,6 +34,18 @@ public class ClassLevelMessageAuthenticationTest {
     public record Container(Secret secret, String label) {
     }
 
+    public record DoubleEncryptedOnSameType(@MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED) Secret secret) {
+    }
+
+    public record FieldEncryptedClassAuthenticated(@MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED) Authenticated auth) {
+    }
+
+    public record FieldAuthenticatedClassEncrypted(@MessageAuthentication(mode = Mode.AUTHENTICATED) Secret secret) {
+    }
+
+    public record DoubleAuthenticatedOnSameType(@MessageAuthentication(mode = Mode.AUTHENTICATED) Authenticated auth) {
+    }
+
     @BeforeEach
     public void setup() {
         final var maops = MessageAuthenticationOps.create(
@@ -123,6 +135,58 @@ public class ClassLevelMessageAuthenticationTest {
         Assertions.assertFalse(out.contains("222-22-2222"));
 
         final var back = mapper.readValue(out, new TypeReference<java.util.List<Secret>>() {});
+        Assertions.assertEquals(src, back);
+    }
+
+    @Test
+    public void bothFieldAndClassEncryptedOnSameType() {
+        final var src = new DoubleEncryptedOnSameType(new Secret("123-45-6789", "ACC-001"));
+
+        final var out = mapper.writeValueAsString(src);
+
+        Assertions.assertFalse(out.contains("123-45-6789"));
+        Assertions.assertFalse(out.contains("ACC-001"));
+        Assertions.assertFalse(out.contains("ssn"));
+
+        final var back = mapper.readValue(out, DoubleEncryptedOnSameType.class);
+        Assertions.assertEquals(src, back);
+    }
+
+    @Test
+    public void fieldEncryptedClassAuthenticated() {
+        final var src = new FieldEncryptedClassAuthenticated(new Authenticated("123-45-6789", "ACC-001"));
+
+        final var out = mapper.writeValueAsString(src);
+
+        Assertions.assertFalse(out.contains("123-45-6789"));
+        Assertions.assertFalse(out.contains("ACC-001"));
+
+        final var back = mapper.readValue(out, FieldEncryptedClassAuthenticated.class);
+        Assertions.assertEquals(src, back);
+    }
+
+    @Test
+    public void fieldAuthenticatedClassEncrypted() {
+        final var src = new FieldAuthenticatedClassEncrypted(new Secret("123-45-6789", "ACC-001"));
+
+        final var out = mapper.writeValueAsString(src);
+
+        Assertions.assertFalse(out.contains("123-45-6789"));
+        Assertions.assertFalse(out.contains("ACC-001"));
+
+        final var back = mapper.readValue(out, FieldAuthenticatedClassEncrypted.class);
+        Assertions.assertEquals(src, back);
+    }
+
+    @Test
+    public void bothFieldAndClassAuthenticatedOnSameType() {
+        final var src = new DoubleAuthenticatedOnSameType(new Authenticated("123-45-6789", "ACC-001"));
+
+        final var out = mapper.writeValueAsString(src);
+
+        Assertions.assertTrue(out.contains("123-45-6789"));
+
+        final var back = mapper.readValue(out, DoubleAuthenticatedOnSameType.class);
         Assertions.assertEquals(src, back);
     }
 }

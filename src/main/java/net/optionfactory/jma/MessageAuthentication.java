@@ -21,8 +21,10 @@ import java.time.temporal.ChronoUnit;
 /// plaintext is embedded in the serialized output. Use `AUTHENTICATED_ENCRYPTED`
 /// when the value must not be readable.
 ///
-/// Placing the annotation on both a field and its type results in double
-/// encryption (redundant, not harmful).
+/// Placing the annotation on both a field and its type applies both layers
+/// independently (the value is processed twice). This is functional,
+/// serialization wraps the inner layer's output, and deserialization peels
+/// them back in reverse order, but redundant. Prefer annotating only one.
 @Documented
 @Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
