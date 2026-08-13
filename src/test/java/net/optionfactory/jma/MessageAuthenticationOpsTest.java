@@ -71,161 +71,161 @@ public class MessageAuthenticationOpsTest {
     }
 
     @Test
-    public void authenticatedReplayIsRejected() {
+    public void authenticatedReplayThrowsTokenAlreadyUsed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
         maops.verifyAndDecode(token, Duration.ofSeconds(60), 1);
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenAlreadyUsed.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedReplayIsRejected() {
+    public void encryptedReplayThrowsTokenAlreadyUsed() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
         maops.authenticateThenDecrypt(token, Duration.ofSeconds(60), 1);
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(token, Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenAlreadyUsed.class, () -> maops.authenticateThenDecrypt(token, Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void authenticatedTamperingSaltIsRejected() {
+    public void authenticatedTamperingSaltThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(tamper(token, 0), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(tamper(token, 0), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void authenticatedTamperingTimestampIsRejected() {
+    public void authenticatedTamperingTimestampThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(tamper(token, 1), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(tamper(token, 1), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void authenticatedTamperingPayloadIsRejected() {
+    public void authenticatedTamperingPayloadThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(tamper(token, 2), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(tamper(token, 2), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void authenticatedTamperingHmacIsRejected() {
+    public void authenticatedTamperingHmacThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(tamper(token, 3), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(tamper(token, 3), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedTamperingIvIsRejected() {
+    public void encryptedTamperingIvThrowsTokenMalformed() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(tamper(token, 0), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(tamper(token, 0), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedTamperingTimestampIsRejected() {
+    public void encryptedTamperingTimestampThrowsTokenMalformed() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(tamper(token, 1), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(tamper(token, 1), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedTamperingCipherTextIsRejected() {
+    public void encryptedTamperingCipherTextThrowsTokenMalformed() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(tamper(token, 2), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(tamper(token, 2), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedTamperingHmacIsRejected() {
+    public void encryptedTamperingHmacThrowsTokenMalformed() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(tamper(token, 3), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(tamper(token, 3), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void authenticatedExpiredTokenIsRejected() {
+    public void authenticatedExpiredThrowsTokenExpired() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
         now.addAndGet(120_000L);
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenExpired.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedExpiredTokenIsRejected() {
+    public void encryptedExpiredThrowsTokenExpired() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
         now.addAndGet(120_000L);
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(token, Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenExpired.class, () -> maops.authenticateThenDecrypt(token, Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void wrongNumberOfPartsIsRejected() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode("a.b.c", Duration.ofSeconds(60), 1));
+    public void wrongNumberOfPartsThrowsTokenMalformed() {
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode("a.b.c", Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void nonNumericTimestampIsRejected() {
+    public void nonNumericTimestampThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
         final var parts = token.split("\\.");
         parts[1] = "not-a-number";
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(String.join(".", parts), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(String.join(".", parts), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void nullValidityIsRejected() {
+    public void nullValidityIsRejectedAsIllegalArgument() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, null, 1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, null, 1));
     }
 
     @Test
-    public void zeroValidityIsRejected() {
+    public void zeroValidityIsRejectedAsIllegalArgument() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ZERO, 1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, Duration.ZERO, 1));
     }
 
     @Test
-    public void negativeValidityIsRejected() {
+    public void negativeValidityIsRejectedAsIllegalArgument() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(-1), 1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(-1), 1));
     }
 
     @Test
-    public void negativeAttemptsIsRejected() {
+    public void negativeAttemptsIsRejectedAsIllegalArgument() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(60), -1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(60), -1));
     }
 
     @Test
-    public void encryptedNullValidityIsRejected() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt("a.b.c.d", null, 1));
+    public void encryptedNullValidityIsRejectedAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.authenticateThenDecrypt("a.b.c.d", null, 1));
     }
 
     @Test
-    public void encryptedZeroValidityIsRejected() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt("a.b.c.d", Duration.ZERO, 1));
+    public void encryptedZeroValidityIsRejectedAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.authenticateThenDecrypt("a.b.c.d", Duration.ZERO, 1));
     }
 
     @Test
-    public void encryptedNegativeValidityIsRejected() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt("a.b.c.d", Duration.ofSeconds(-1), 1));
+    public void encryptedNegativeValidityIsRejectedAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.authenticateThenDecrypt("a.b.c.d", Duration.ofSeconds(-1), 1));
     }
 
     @Test
-    public void encryptedNegativeAttemptsIsRejected() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt("a.b.c.d", Duration.ofSeconds(60), -1));
+    public void encryptedNegativeAttemptsIsRejectedAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.authenticateThenDecrypt("a.b.c.d", Duration.ofSeconds(60), -1));
     }
 
     @Test
-    public void encryptedWrongNumberOfPartsIsRejected() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt("a.b.c", Duration.ofSeconds(60), 1));
+    public void encryptedWrongNumberOfPartsThrowsTokenMalformed() {
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt("a.b.c", Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void encryptedNonNumericTimestampIsRejected() {
+    public void encryptedNonNumericTimestampThrowsTokenMalformed() {
         final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
         final var parts = token.split("\\.");
         parts[1] = "not-a-number";
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.authenticateThenDecrypt(String.join(".", parts), Duration.ofSeconds(60), 1));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(String.join(".", parts), Duration.ofSeconds(60), 1));
     }
 
     @Test
-    public void createRejectsShortAesKey() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> MessageAuthenticationOps.create(
+    public void createRejectsShortAesKeyAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MessageAuthenticationOps.create(
                 new InMemoryConsumedTokenStore(() -> 0L),
                 new byte[16], new byte[64], new SecureRandom(), () -> 0L));
     }
 
     @Test
-    public void createRejectsShortHmacKey() {
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> MessageAuthenticationOps.create(
+    public void createRejectsShortHmacKeyAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> MessageAuthenticationOps.create(
                 new InMemoryConsumedTokenStore(() -> 0L),
                 new byte[32], new byte[32], new SecureRandom(), () -> 0L));
     }

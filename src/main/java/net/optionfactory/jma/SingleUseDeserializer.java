@@ -36,7 +36,7 @@ public class SingleUseDeserializer extends ValueDeserializer<Object> {
     @Override
     public Object deserialize(JsonParser parser, DeserializationContext context) {
         if (innerType == null) {
-            throw new MessageAuthenticationError("SingleUse<?> requires a concrete type parameter");
+            throw new IllegalArgumentException("SingleUse<?> requires a concrete type parameter");
         }
         final var accumulator = new Accumulator();
         context.setAttribute(Accumulator.KEY, accumulator);

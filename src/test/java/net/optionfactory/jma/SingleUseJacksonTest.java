@@ -135,10 +135,10 @@ public class SingleUseJacksonTest {
     }
 
     @Test
-    public void strictConstituentThrowsOnRecycle() {
+    public void strictConstituentRecycleThrowsTokenDepleted() {
         final var json = mapper.writeValueAsString(new StrictMixed("r", "s"));
         final SingleUse<StrictMixed> su = mapper.readValue(json, MIXED);
-        Assertions.assertThrows(MessageAuthenticationError.class, su::recycle);
+        Assertions.assertThrows(TokenDepleted.class, su::recycle);
     }
 
     @Test
@@ -179,10 +179,10 @@ public class SingleUseJacksonTest {
     }
 
     @Test
-    public void encryptedStrictConstituentThrowsOnRecycle() {
+    public void encryptedStrictConstituentRecycleThrowsTokenDepleted() {
         final var json = mapper.writeValueAsString(new EncStrictMixed("r", "s"));
         final SingleUse<EncStrictMixed> su = mapper.readValue(json, ENC_MIXED);
-        Assertions.assertThrows(MessageAuthenticationError.class, su::recycle);
+        Assertions.assertThrows(TokenDepleted.class, su::recycle);
     }
 
     @Test
@@ -204,7 +204,7 @@ public class SingleUseJacksonTest {
         final SingleUse<Lifecycle> su1 = mapper.readValue(json, LIFECYCLE);
         su1.recycle();
         final SingleUse<Lifecycle> su2 = mapper.readValue(json, LIFECYCLE);
-        Assertions.assertThrows(MessageAuthenticationError.class, su2::recycle);
+        Assertions.assertThrows(TokenDepleted.class, su2::recycle);
         Assertions.assertThrows(Exception.class, () -> mapper.readValue(json, LIFECYCLE));
     }
 
@@ -231,10 +231,10 @@ public class SingleUseJacksonTest {
     }
 
     @Test
-    public void strictFieldInNestedBeanThrowsOnRecycle() {
+    public void strictFieldInNestedBeanRecycleThrowsTokenDepleted() {
         final var json = mapper.writeValueAsString(new NestedStrict("o", new InnerStrict("i")));
         final SingleUse<NestedStrict> su = mapper.readValue(json, NESTED_STRICT);
-        Assertions.assertThrows(MessageAuthenticationError.class, su::recycle);
+        Assertions.assertThrows(TokenDepleted.class, su::recycle);
     }
 
     @Test
@@ -243,7 +243,7 @@ public class SingleUseJacksonTest {
         final SingleUse<MixedBudgets> su1 = mapper.readValue(json, MIXED_BUDGETS);
         su1.recycle();
         final SingleUse<MixedBudgets> su2 = mapper.readValue(json, MIXED_BUDGETS);
-        Assertions.assertThrows(MessageAuthenticationError.class, su2::recycle);
+        Assertions.assertThrows(TokenDepleted.class, su2::recycle);
     }
 
     @Test

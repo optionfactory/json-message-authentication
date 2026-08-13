@@ -187,6 +187,33 @@ at roughly 2^32 encryptions per key before the collision risk becomes
 unacceptable. Safe GCM use would require a durably-managed, never-repeating
 counter nonce — a materially different design.
 
+## Failure handling
+
+Token failures throw a `MessageAuthenticationError` (a `RuntimeException`); catch
+the base type to handle any failure, or a subtype for a specific category:
+
+- `TokenExpired` — past the validity window
+- `TokenMalformed` — HMAC mismatch or unparseable structure (tampered/corrupt)
+- `TokenAlreadyUsed` — the token is already blocked (replay/duplicate)
+- `TokenDepleted` — the retry budget is exhausted (recycle rejected)
+
+Invalid arguments (e.g. a negative `attempts`) raise `IllegalArgumentException`
+and environment/internal failures raise `IllegalStateException` — both are
+deliberately outside the `MessageAuthenticationError` hierarchy, since they are
+not token conditions.
+
+```java
+try {
+    handle(su.value());
+} catch (TokenExpired e) {
+    // 410 — tell the client to get a fresh token
+} catch (TokenAlreadyUsed | TokenDepleted e) {
+    // 409 — already consumed / out of retries
+} catch (MessageAuthenticationError e) {
+    // 400 — tampered or malformed
+}
+```
+
 ## Limitations / non-goals
 
 - No built-in distributed token store.

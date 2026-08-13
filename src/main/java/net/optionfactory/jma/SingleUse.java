@@ -7,8 +7,8 @@ package net.optionfactory.jma;
 /// The token is blocked at decode time and each decode consumes one attempt
 /// (so concurrent replays are rejected on the happy path). [ #recycle() ] puts
 /// the token back into a decodable state so it can be decoded again, and throws
-/// `MessageAuthenticationError` when no attempts remain. On success the caller
-/// does nothing — the token stays blocked and any further decode is rejected.
+/// [TokenDepleted] when no attempts remain. On success the caller does nothing —
+/// the token stays blocked and any further decode is rejected.
 public record SingleUse<T>(T value, Recycler recycler) {
 
     @FunctionalInterface

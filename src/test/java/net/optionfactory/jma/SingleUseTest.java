@@ -25,20 +25,20 @@ public class SingleUseTest {
     }
 
     @Test
-    public void strictSingleUseForbidsRecycle() {
+    public void strictSingleUseRecycleThrowsTokenDepleted() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
         final var token = maops.authenticate(payload);
         final var first = maops.verifyAndDecode(token, Duration.ofSeconds(5), 1);
         Assertions.assertArrayEquals(payload, first.value());
-        Assertions.assertThrows(MessageAuthenticationError.class, first::recycle);
+        Assertions.assertThrows(TokenDepleted.class, first::recycle);
     }
 
     @Test
-    public void secondDecodeWithoutRecycleIsRejected() {
+    public void secondDecodeWithoutRecycleThrowsTokenAlreadyUsed() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
         final var token = maops.authenticate(payload);
         maops.verifyAndDecode(token, Duration.ofSeconds(5), 3);
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(5), 3));
+        Assertions.assertThrows(TokenAlreadyUsed.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(5), 3));
     }
 
     @Test
@@ -52,7 +52,7 @@ public class SingleUseTest {
             if (i != attempts - 1) {
                 su.recycle();
             } else {
-                Assertions.assertThrows(MessageAuthenticationError.class, su::recycle);
+                Assertions.assertThrows(TokenDepleted.class, su::recycle);
             }
         }
     }
@@ -77,7 +77,7 @@ public class SingleUseTest {
         first.recycle();
         final var second = maops.authenticateThenDecrypt(token, Duration.ofSeconds(5), 2);
         Assertions.assertArrayEquals(payload, second.value());
-        Assertions.assertThrows(MessageAuthenticationError.class, second::recycle);
+        Assertions.assertThrows(TokenDepleted.class, second::recycle);
     }
 
     @Test
@@ -103,8 +103,8 @@ public class SingleUseTest {
     }
 
     @Test
-    public void attemptsNegativeIsRejected() {
+    public void negativeAttemptsIsRejectedAsIllegalArgument() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(MessageAuthenticationError.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(5), -1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(5), -1));
     }
 }

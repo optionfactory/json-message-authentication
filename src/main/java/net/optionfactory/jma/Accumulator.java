@@ -32,7 +32,7 @@ final class Accumulator {
             }
         }
         if (firstFailure != null) {
-            throw new MessageAuthenticationError("bean is not retryable: one of its tokens could not be recycled");
+            throw new TokenDepleted("bean is not retryable: one of its tokens could not be recycled");
         }
     }
 

@@ -76,7 +76,7 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
             }
         }
         if (authmsg == null) {
-            throw new MessageAuthenticationError("missing authmsg");
+            throw new TokenMalformed("missing authmsg");
         }
         return authmsg;
     }

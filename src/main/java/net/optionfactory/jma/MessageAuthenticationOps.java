@@ -58,12 +58,8 @@ public class MessageAuthenticationOps {
     /// @param random             source of nonces/IVs.
     /// @param clock              millisecond clock used for token timestamps/expiry.
     public static MessageAuthenticationOps create(ConsumedTokenStore consumedTokenStore, byte[] aesKey, byte[] hmacKey, SecureRandom random, Supplier<Long> clock) {
-        if (aesKey.length != 32) {
-            throw new MessageAuthenticationError("aesKey must be 32B long");
-        }
-        if (hmacKey.length != 64) {
-            throw new MessageAuthenticationError("hmacKey is not 64B long");
-        }
+        require(aesKey.length == 32, "aesKey must be 32B long");
+        require(hmacKey.length == 64, "hmacKey is not 64B long");
         return new MessageAuthenticationOps(
                 consumedTokenStore,
                 new SecretKeySpec(aesKey, "AES"),
@@ -86,13 +82,19 @@ public class MessageAuthenticationOps {
         return iv;
     }
 
+    private static void require(boolean test, String message) {
+        if (!test) {
+            throw new IllegalArgumentException(message);
+        }
+    }
+
     private Mac initHmacSha256() {
         try {
             final var mac = Mac.getInstance("HmacSHA256");
             mac.init(hmacKey);
             return mac;
         } catch (NoSuchAlgorithmException | InvalidKeyException ex) {
-            throw new MessageAuthenticationError(ex.getMessage());
+            throw new IllegalStateException(ex.getMessage());
         }
     }
 
@@ -102,7 +104,7 @@ public class MessageAuthenticationOps {
             cipher.init(mode, aesKey, new IvParameterSpec(iv));
             return cipher;
         } catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException | InvalidAlgorithmParameterException ex) {
-            throw new MessageAuthenticationError(ex.getMessage());
+            throw new IllegalStateException(ex.getMessage());
         }
     }
 
@@ -127,7 +129,7 @@ public class MessageAuthenticationOps {
                     b64enc.encodeToString(computedHmac)
             );
         } catch (IllegalBlockSizeException | BadPaddingException ex) {
-            throw new MessageAuthenticationError(ex.getMessage());
+            throw new IllegalStateException(ex.getMessage());
         }
     }
 
@@ -135,11 +137,11 @@ public class MessageAuthenticationOps {
     /// [ #encryptThenAuthenticate ] token. See [ #verifyAndDecode ] for the
     /// `attempts` / [SingleUse] contract.
     public SingleUse<byte[]> authenticateThenDecrypt(String value, Duration validity, int attempts) {
-        MessageAuthenticationError.enforce(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
-        MessageAuthenticationError.enforce(attempts >= 0, "attempts must be >= 0");
+        require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+        require(attempts >= 0, "attempts must be >= 0");
         final long validityMs = validity.toMillis();
         final var split = value.split("\\.");
-        MessageAuthenticationError.enforce(split.length == 4, "invalid parts");
+        TokenMalformed.enforce(split.length == 4, "invalid parts");
 
         final byte[] iv;
         final long createdAt;
@@ -152,34 +154,34 @@ public class MessageAuthenticationOps {
             cipherText = b64dec.decode(split[2]);
             receivedHmac = b64dec.decode(split[3]);
         } catch (IllegalArgumentException ex) {
-            throw new MessageAuthenticationError("malformed token encoding");
+            throw new TokenMalformed("malformed token encoding");
         }
 
         final var now = clock.get();
-        MessageAuthenticationError.enforce(iv.length == ivLength, "invalid iv");
+        TokenMalformed.enforce(iv.length == ivLength, "invalid iv");
         final var expiresAt = createdAt + validityMs;
-        MessageAuthenticationError.enforce(expiresAt > now, "expired");
+        TokenExpired.enforce(expiresAt > now, "expired");
 
         final var mac = initHmacSha256();
         mac.update(ByteBuffer.allocate(8).putLong(createdAt).array());
         mac.update(iv);
         final var computedMessageHmac = mac.doFinal(cipherText);
 
-        MessageAuthenticationError.enforce(MessageDigest.isEqual(computedMessageHmac, receivedHmac), "tampering");
+        TokenMalformed.enforce(MessageDigest.isEqual(computedMessageHmac, receivedHmac), "tampering");
 
         final byte[] clearText;
         try {
             clearText = initAesCbcPkcs7(iv, Cipher.DECRYPT_MODE).doFinal(cipherText);
         } catch (IllegalBlockSizeException | BadPaddingException ex) {
-            throw new MessageAuthenticationError(ex.getMessage());
+            throw new TokenMalformed(ex.getMessage());
         }
 
         if (attempts == 0) {
             return new SingleUse<>(clearText, () -> {});
         }
         final var messageId = split[3];
-        MessageAuthenticationError.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
-        return new SingleUse<>(clearText, () -> MessageAuthenticationError.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
+        TokenAlreadyUsed.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
+        return new SingleUse<>(clearText, () -> TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
     }
 
     /// Produces an authenticated (integrity-only) token. The payload is embedded
@@ -211,11 +213,11 @@ public class MessageAuthenticationOps {
     ///                      up to `N` decodes, with `recycle` re-enabling one more.
     /// @return the payload and a [SingleUse#recycle] action.
     public SingleUse<byte[]> verifyAndDecode(String authenticated, Duration validity, int attempts) {
-        MessageAuthenticationError.enforce(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
-        MessageAuthenticationError.enforce(attempts >= 0, "attempts must be >= 0");
+        require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+        require(attempts >= 0, "attempts must be >= 0");
         final long validityMs = validity.toMillis();
         final var split = authenticated.split("\\.");
-        MessageAuthenticationError.enforce(split.length == 4, "invalid parts");
+        TokenMalformed.enforce(split.length == 4, "invalid parts");
 
         final byte[] salt;
         final long createdAt;
@@ -228,27 +230,27 @@ public class MessageAuthenticationOps {
             clearText = b64dec.decode(split[2]);
             hmacValue = b64dec.decode(split[3]);
         } catch (IllegalArgumentException ex) {
-            throw new MessageAuthenticationError("malformed token encoding");
+            throw new TokenMalformed("malformed token encoding");
         }
 
         final var now = clock.get();
-        MessageAuthenticationError.enforce(salt.length == saltLength, "invalid salt");
+        TokenMalformed.enforce(salt.length == saltLength, "invalid salt");
         final var expiresAt = createdAt + validityMs;
-        MessageAuthenticationError.enforce(expiresAt > now, "expired");
+        TokenExpired.enforce(expiresAt > now, "expired");
 
         final var sha256 = initHmacSha256();
         sha256.update(ByteBuffer.allocate(8).putLong(createdAt).array());
         sha256.update(salt);
         final var computedHmacValue = sha256.doFinal(clearText);
 
-        MessageAuthenticationError.enforce(MessageDigest.isEqual(computedHmacValue, hmacValue), "tampering");
+        TokenMalformed.enforce(MessageDigest.isEqual(computedHmacValue, hmacValue), "tampering");
 
         if (attempts == 0) {
             return new SingleUse<>(clearText, () -> {});
         }
         final var messageId = split[3];
-        MessageAuthenticationError.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
-        return new SingleUse<>(clearText, () -> MessageAuthenticationError.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
+        TokenAlreadyUsed.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
+        return new SingleUse<>(clearText, () -> TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
     }
 
     public enum KeyEncoding {
