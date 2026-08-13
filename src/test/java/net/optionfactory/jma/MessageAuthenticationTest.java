@@ -53,6 +53,18 @@ public class MessageAuthenticationTest {
 
     }
 
+    @Test
+    public void directRoundtripAcceptsObjectForm() {
+
+        final var src = new RecordWithString("1", "11111");
+
+        final var out = mapper.writeValueAsString(src);
+        final var roundTripped = mapper.readValue(out, RecordWithString.class);
+
+        Assertions.assertEquals(src, roundTripped);
+
+    }
+
     public record RecordWithAnnotatedObject(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED) AnnotatedObject toBeAuthenticated) {
 
     }
@@ -75,4 +87,14 @@ public class MessageAuthenticationTest {
         Assertions.assertEquals(src.toBeAuthenticated().value(), got.toBeAuthenticated().value());
     }
 
+    @Test
+    public void directRoundtripAcceptsObjectFormWithNestedObject() {
+
+        final var src = new RecordWithAnnotatedObject("1", new AnnotatedObject(Instant.parse("1970-01-01T00:00:00.000Z")));
+
+        final var out = mapper.writeValueAsString(src);
+        final var roundTripped = mapper.readValue(out, RecordWithAnnotatedObject.class);
+
+        Assertions.assertEquals(src, roundTripped);
+    }
 }

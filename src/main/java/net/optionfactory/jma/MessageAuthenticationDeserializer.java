@@ -2,6 +2,7 @@ package net.optionfactory.jma;
 
 import java.time.Duration;
 import tools.jackson.core.JsonParser;
+import tools.jackson.core.JsonToken;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.JavaType;
 import tools.jackson.databind.ValueDeserializer;
@@ -20,11 +21,34 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
 
     @Override
     public Object deserialize(JsonParser parser, DeserializationContext context) {
-        final var value = parser.getValueAsString();
+        final var token = parser.currentToken();
+        final String value;
+        if (token == JsonToken.START_OBJECT) {
+            value = readAuthmsgField(parser);
+        } else {
+            value = parser.getValueAsString();
+        }
         final var verifiedBytes = ops.verifyAndDecode(value, validity);
         try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), verifiedBytes)) {
             return nestedParser.readValueAs(type);
         }
+    }
+
+    private static String readAuthmsgField(JsonParser parser) {
+        String authmsg = null;
+        while (parser.nextToken() != JsonToken.END_OBJECT) {
+            final var fieldName = parser.currentName();
+            parser.nextToken();
+            if ("authmsg".equals(fieldName)) {
+                authmsg = parser.getValueAsString();
+            } else {
+                parser.skipChildren();
+            }
+        }
+        if (authmsg == null) {
+            throw new MessageAuthenticationError("missing authmsg");
+        }
+        return authmsg;
     }
 
 }
