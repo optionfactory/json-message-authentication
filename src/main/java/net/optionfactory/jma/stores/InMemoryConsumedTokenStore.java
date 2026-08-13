@@ -10,6 +10,15 @@ public class InMemoryConsumedTokenStore implements ConsumedTokenStore {
     private record State(long expiresAt, int consumed, boolean blocked) {
 
     }
+    
+    private record Expiration(long expiresAt, String messageId) implements Comparable<Expiration> {
+
+        @Override
+        public int compareTo(Expiration o) {
+            return Long.compare(this.expiresAt, o.expiresAt);
+        }
+    }
+
 
     private final ConcurrentHashMap<String, State> store = new ConcurrentHashMap<>();
     private final PriorityBlockingQueue<Expiration> expirations = new PriorityBlockingQueue<>();
@@ -62,14 +71,6 @@ public class InMemoryConsumedTokenStore implements ConsumedTokenStore {
             if (store.replace(messageId, prev, new State(prev.expiresAt(), prev.consumed(), false))) {
                 return true;
             }
-        }
-    }
-
-    private record Expiration(long expiresAt, String messageId) implements Comparable<Expiration> {
-
-        @Override
-        public int compareTo(Expiration o) {
-            return Long.compare(this.expiresAt, o.expiresAt);
         }
     }
 
