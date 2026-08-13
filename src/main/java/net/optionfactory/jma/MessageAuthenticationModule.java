@@ -28,5 +28,6 @@ public class MessageAuthenticationModule extends JacksonModule {
         ctx.appendAnnotationIntrospector(new MessageAuthenticationAnnotationIntrospector(version, ops));
         ctx.addSerializerModifier(new MessageAuthenticationSerializerModifier(ops));
         ctx.addDeserializerModifier(new MessageAuthenticationDeserializerModifier(ops));
+        ctx.addDeserializers(new SingleUseDeserializer.Registrar());
     }
 }

@@ -52,7 +52,9 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
         } else {
             value = parser.getValueAsString();
         }
-        final var verifiedBytes = ops.verifyAndDecode(value, validity, attempts).value();
+        final var singleUse = ops.verifyAndDecode(value, validity, attempts);
+        Accumulator.register(context, singleUse);
+        final var verifiedBytes = singleUse.value();
         try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), verifiedBytes)) {
             if (delegate != null) {
                 nestedParser.nextToken();

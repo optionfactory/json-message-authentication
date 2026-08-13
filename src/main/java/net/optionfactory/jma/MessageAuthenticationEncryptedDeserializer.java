@@ -45,7 +45,9 @@ public class MessageAuthenticationEncryptedDeserializer extends ValueDeserialize
     @Override
     public Object deserialize(JsonParser parser, DeserializationContext context) {
         final String value = parser.getValueAsString();
-        final var clearTextBytes = ops.authenticateThenDecrypt(value, validity, attempts).value();
+        final var singleUse = ops.authenticateThenDecrypt(value, validity, attempts);
+        Accumulator.register(context, singleUse);
+        final var clearTextBytes = singleUse.value();
         try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), clearTextBytes)) {
             if (delegate != null) {
                 nestedParser.nextToken();
