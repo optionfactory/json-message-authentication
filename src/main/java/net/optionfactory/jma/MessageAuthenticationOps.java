@@ -16,13 +16,13 @@ import javax.crypto.Mac;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
-import net.optionfactory.jma.singleuse.SingleUseStore;
+import net.optionfactory.jma.stores.ConsumedTokenStore;
 
 public class MessageAuthenticationOps {
 
     private final Base64.Encoder b64enc = Base64.getUrlEncoder().withoutPadding();
     private final Base64.Decoder b64dec = Base64.getUrlDecoder();
-    private final SingleUseStore singleUseStore;
+    private final ConsumedTokenStore consumedTokenStore;
     private final SecretKeySpec aesKey;
     private final SecretKeySpec hmacKey;
     private final SecureRandom random;
@@ -30,15 +30,15 @@ public class MessageAuthenticationOps {
     private final int ivLength = 16;
     private final int saltLength = 12;
 
-    public MessageAuthenticationOps(SingleUseStore singleUseStore, SecretKeySpec aesKey, SecretKeySpec hmacKey, SecureRandom random, Supplier<Long> clock) {
-        this.singleUseStore = singleUseStore;
+    public MessageAuthenticationOps(ConsumedTokenStore consumedTokenStore, SecretKeySpec aesKey, SecretKeySpec hmacKey, SecureRandom random, Supplier<Long> clock) {
+        this.consumedTokenStore = consumedTokenStore;
         this.aesKey = aesKey;
         this.hmacKey = hmacKey;
         this.random = random;
         this.clock = clock;
     }
 
-    public static MessageAuthenticationOps create(SingleUseStore singleUseStore, byte[] aesKey, byte[] hmacKey, SecureRandom random, Supplier<Long> clock) {
+    public static MessageAuthenticationOps create(ConsumedTokenStore consumedTokenStore, byte[] aesKey, byte[] hmacKey, SecureRandom random, Supplier<Long> clock) {
         if (aesKey.length != 32) {
             throw new MessageAuthenticationError("aesKey must be 32B long");
         }
@@ -46,7 +46,7 @@ public class MessageAuthenticationOps {
             throw new MessageAuthenticationError("hmacKey is not 64B long");
         }
         return new MessageAuthenticationOps(
-                singleUseStore,
+                consumedTokenStore,
                 new SecretKeySpec(aesKey, "AES"),
                 new SecretKeySpec(hmacKey, "HmacSHA256"),
                 random,
@@ -54,10 +54,10 @@ public class MessageAuthenticationOps {
         );
     }
 
-    public static MessageAuthenticationOps create(SingleUseStore singleUseStore, String encodedAesKey, String encodedHmacKey, SecureRandom random, Supplier<Long> clock, KeyEncoding keyEncoding) {
+    public static MessageAuthenticationOps create(ConsumedTokenStore consumedTokenStore, String encodedAesKey, String encodedHmacKey, SecureRandom random, Supplier<Long> clock, KeyEncoding keyEncoding) {
         final var aesKey = keyEncoding.decode(encodedAesKey);
         final var hmacKey = keyEncoding.decode(encodedHmacKey);
-        return MessageAuthenticationOps.create(singleUseStore, aesKey, hmacKey, random, clock);
+        return MessageAuthenticationOps.create(consumedTokenStore, aesKey, hmacKey, random, clock);
     }
 
     private byte[] randomBytes(int len) {
@@ -109,8 +109,9 @@ public class MessageAuthenticationOps {
         }
     }
 
-    public byte[] authenticateThenDecrypt(String value, Duration validity) {
+    public SingleUse<byte[]> authenticateThenDecrypt(String value, Duration validity, int attempts) {
         MessageAuthenticationError.enforce(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+        MessageAuthenticationError.enforce(attempts >= 0, "attempts must be >= 0");
         final long validityMs = validity.toMillis();
         final var split = value.split("\\.");
         MessageAuthenticationError.enforce(split.length == 4, "invalid parts");
@@ -141,13 +142,19 @@ public class MessageAuthenticationOps {
 
         MessageAuthenticationError.enforce(MessageDigest.isEqual(computedMessageHmac, receivedHmac), "tampering");
 
-        MessageAuthenticationError.enforce(this.singleUseStore.checkAndStore(split[3], expiresAt), "message already used");
-
+        final byte[] clearText;
         try {
-            return initAesCbcPkcs7(iv, Cipher.DECRYPT_MODE).doFinal(cipherText);
+            clearText = initAesCbcPkcs7(iv, Cipher.DECRYPT_MODE).doFinal(cipherText);
         } catch (IllegalBlockSizeException | BadPaddingException ex) {
             throw new MessageAuthenticationError(ex.getMessage());
         }
+
+        if (attempts == 0) {
+            return new SingleUse<>(clearText, () -> {});
+        }
+        final var messageId = split[3];
+        MessageAuthenticationError.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
+        return new SingleUse<>(clearText, () -> MessageAuthenticationError.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
     }
 
     public String authenticate(byte[] clearText) {
@@ -161,13 +168,14 @@ public class MessageAuthenticationOps {
         return String.format("%s.%s.%s.%s",
                 b64enc.encodeToString(salt),
                 createdAt,
-                b64enc.encodeToString(computedHmacValue),
-                b64enc.encodeToString(clearText)
+                b64enc.encodeToString(clearText),
+                b64enc.encodeToString(computedHmacValue)
         );
     }
 
-    public byte[] verifyAndDecode(String authenticated, Duration validity) {
+    public SingleUse<byte[]> verifyAndDecode(String authenticated, Duration validity, int attempts) {
         MessageAuthenticationError.enforce(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+        MessageAuthenticationError.enforce(attempts >= 0, "attempts must be >= 0");
         final long validityMs = validity.toMillis();
         final var split = authenticated.split("\\.");
         MessageAuthenticationError.enforce(split.length == 4, "invalid parts");
@@ -180,8 +188,8 @@ public class MessageAuthenticationOps {
         try {
             salt = b64dec.decode(split[0]);
             createdAt = Long.parseLong(split[1]);
-            hmacValue = b64dec.decode(split[2]);
-            clearText = b64dec.decode(split[3]);
+            clearText = b64dec.decode(split[2]);
+            hmacValue = b64dec.decode(split[3]);
         } catch (IllegalArgumentException ex) {
             throw new MessageAuthenticationError("malformed token encoding");
         }
@@ -197,9 +205,13 @@ public class MessageAuthenticationOps {
         final var computedHmacValue = sha256.doFinal(clearText);
 
         MessageAuthenticationError.enforce(MessageDigest.isEqual(computedHmacValue, hmacValue), "tampering");
-        MessageAuthenticationError.enforce(this.singleUseStore.checkAndStore(split[2], expiresAt), "message already used");
 
-        return clearText;
+        if (attempts == 0) {
+            return new SingleUse<>(clearText, () -> {});
+        }
+        final var messageId = split[3];
+        MessageAuthenticationError.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
+        return new SingleUse<>(clearText, () -> MessageAuthenticationError.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
     }
 
     public enum KeyEncoding {

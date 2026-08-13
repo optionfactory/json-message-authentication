@@ -2,9 +2,10 @@ package net.optionfactory.jma;
 
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.util.concurrent.atomic.AtomicLong;
 import net.optionfactory.jma.MessageAuthentication.Mode;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
-import net.optionfactory.jma.singleuse.InMemorySingleUseStore;
+import net.optionfactory.jma.stores.InMemoryConsumedTokenStore;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,7 +29,7 @@ public class MessageAuthenticationEncryptedTest {
     @BeforeEach
     public void setup() {
         final var maops = MessageAuthenticationOps.create(
-                new InMemorySingleUseStore(Clock.systemUTC()::millis),
+                new InMemoryConsumedTokenStore(Clock.systemUTC()::millis),
                 "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA=",
                 "CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA==",
                 new SecureRandom(),
@@ -65,5 +66,39 @@ public class MessageAuthenticationEncryptedTest {
         Assertions.assertEquals(src.toBeEncrypted().value1(), got.toBeEncrypted().value1());
         Assertions.assertEquals(src.toBeEncrypted().value2(), got.toBeEncrypted().value2());
         Assertions.assertEquals(src.toBeEncrypted().value3(), got.toBeEncrypted().value3());
+    }
+
+    public record RecordWithStrictAttempts(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED, attempts = 1) String toBeEncrypted) {
+
+    }
+
+    @Test
+    public void defaultAttemptsAllowsRepeatedDecodes() {
+        final var src = new RecordWithString("1", "11111");
+        final var out = mapper.writeValueAsString(src);
+        mapper.readValue(out, RecordWithString.class);
+        mapper.readValue(out, RecordWithString.class);
+    }
+
+    @Test
+    public void attemptsOneRejectsRepeatedDecodes() {
+        final var src = new RecordWithStrictAttempts("1", "11111");
+        final var out = mapper.writeValueAsString(src);
+        mapper.readValue(out, RecordWithStrictAttempts.class);
+        Assertions.assertThrows(Exception.class, () -> mapper.readValue(out, RecordWithStrictAttempts.class));
+    }
+
+    @Test
+    public void expiredAnnotatedFieldFailsToDeserialize() {
+        final var now = new AtomicLong(1_000_000L);
+        final var maops = MessageAuthenticationOps.create(
+                new InMemoryConsumedTokenStore(now::get),
+                "hCVxn9jkw5WKeS2tjlO5bMmD4eHwm+P8daHUHesimnA=",
+                "CRejIvb47whaMpIBNVAxym8Mbe33mbX0UbXaUJ2pKEaKiF8uRTlO5QzQTAPEhMKzZzuuGhJEaWcYGjti6Y4YZA==",
+                new SecureRandom(), now::get, KeyEncoding.BASE_64);
+        final var expiredMapper = JsonMapper.builder().addModule(new MessageAuthenticationModule(maops)).build();
+        final var out = expiredMapper.writeValueAsString(new RecordWithString("1", "11111"));
+        now.addAndGet(7L * 3_600_000L);
+        Assertions.assertThrows(Exception.class, () -> expiredMapper.readValue(out, RecordWithString.class));
     }
 }

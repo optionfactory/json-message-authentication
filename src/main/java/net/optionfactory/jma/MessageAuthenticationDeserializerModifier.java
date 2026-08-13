@@ -20,10 +20,11 @@ public class MessageAuthenticationDeserializerModifier extends ValueDeserializer
             return deserializer;
         }
         final var validity = annotation.unit().getDuration().multipliedBy(annotation.validity());
+        final int attempts = annotation.attempts();
         if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
-            return new MessageAuthenticationDeserializer(ops, validity, deserializer);
+            return new MessageAuthenticationDeserializer(ops, validity, attempts, deserializer);
         }
-        return new MessageAuthenticationEncryptedDeserializer(ops, validity, deserializer);
+        return new MessageAuthenticationEncryptedDeserializer(ops, validity, attempts, deserializer);
     }
 
 }

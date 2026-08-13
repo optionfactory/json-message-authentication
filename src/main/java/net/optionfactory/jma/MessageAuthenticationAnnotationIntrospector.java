@@ -27,10 +27,11 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
         }
 
         final var validity = annotation.unit().getDuration().multipliedBy(annotation.validity());
+        final int attempts = annotation.attempts();
         if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
-            return new MessageAuthenticationDeserializer(ops, am.getType(), validity);
+            return new MessageAuthenticationDeserializer(ops, am.getType(), validity, attempts);
         }
-        return new MessageAuthenticationEncryptedDeserializer(ops, am.getType(), validity);
+        return new MessageAuthenticationEncryptedDeserializer(ops, am.getType(), validity, attempts);
 
     }
 

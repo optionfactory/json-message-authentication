@@ -12,24 +12,27 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
     private final MessageAuthenticationOps ops;
     private final JavaType type;
     private final Duration validity;
+    private final int attempts;
     private final ValueDeserializer<Object> delegate;
 
-    public MessageAuthenticationDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity) {
-        this(ops, type, validity, null);
+    public MessageAuthenticationDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity, int attempts) {
+        this(ops, type, validity, attempts, null);
     }
 
     @SuppressWarnings("unchecked")
-    public MessageAuthenticationDeserializer(MessageAuthenticationOps ops, Duration validity, ValueDeserializer<?> delegate) {
+    public MessageAuthenticationDeserializer(MessageAuthenticationOps ops, Duration validity, int attempts, ValueDeserializer<?> delegate) {
         this.ops = ops;
         this.type = null;
         this.validity = validity;
+        this.attempts = attempts;
         this.delegate = (ValueDeserializer<Object>) delegate;
     }
 
-    private MessageAuthenticationDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity, ValueDeserializer<Object> delegate) {
+    private MessageAuthenticationDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity, int attempts, ValueDeserializer<Object> delegate) {
         this.ops = ops;
         this.type = type;
         this.validity = validity;
+        this.attempts = attempts;
         this.delegate = delegate;
     }
 
@@ -49,7 +52,7 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
         } else {
             value = parser.getValueAsString();
         }
-        final var verifiedBytes = ops.verifyAndDecode(value, validity);
+        final var verifiedBytes = ops.verifyAndDecode(value, validity, attempts).value();
         try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), verifiedBytes)) {
             if (delegate != null) {
                 nestedParser.nextToken();

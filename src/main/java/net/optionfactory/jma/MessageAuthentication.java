@@ -42,4 +42,9 @@ public @interface MessageAuthentication {
 
     /// @return the time unit for [ validity() ].
     ChronoUnit unit() default ChronoUnit.HOURS;
+
+    /// @return the single-use policy: `0` (default) disables single-use entirely
+    /// (the token is freely reusable, matching pre-3.0 behavior); `1` enables
+    /// strict single-use (one decode only); `N > 1` allows up to `N` decodes.
+    int attempts() default 0;
 }
