@@ -8,7 +8,7 @@ import java.lang.annotation.Target;
 import java.time.temporal.ChronoUnit;
 
 @Documented
-@Target({ElementType.FIELD, ElementType.PARAMETER})
+@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface MessageAuthentication {
 

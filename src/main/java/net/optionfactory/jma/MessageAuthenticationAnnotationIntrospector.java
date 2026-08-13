@@ -4,6 +4,7 @@ import tools.jackson.core.Version;
 import tools.jackson.databind.AnnotationIntrospector;
 import tools.jackson.databind.cfg.MapperConfig;
 import tools.jackson.databind.introspect.Annotated;
+import tools.jackson.databind.introspect.AnnotatedClass;
 
 public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntrospector {
 
@@ -17,6 +18,9 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
 
     @Override
     public Object findDeserializer(MapperConfig<?> config, Annotated am) {
+        if (am instanceof AnnotatedClass) {
+            return null;
+        }
         final MessageAuthentication annotation = am.getAnnotation(MessageAuthentication.class);
         if (annotation == null) {
             return null;
@@ -32,6 +36,9 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
 
     @Override
     public Object findSerializer(MapperConfig<?> config, Annotated am) {
+        if (am instanceof AnnotatedClass) {
+            return null;
+        }
         final MessageAuthentication annotation = am.getAnnotation(MessageAuthentication.class);
         if (annotation == null) {
             return null;

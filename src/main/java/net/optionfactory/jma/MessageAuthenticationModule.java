@@ -26,5 +26,7 @@ public class MessageAuthenticationModule extends JacksonModule {
     @Override
     public void setupModule(SetupContext ctx) {
         ctx.appendAnnotationIntrospector(new MessageAuthenticationAnnotationIntrospector(version, ops));
+        ctx.addSerializerModifier(new MessageAuthenticationSerializerModifier(ops));
+        ctx.addDeserializerModifier(new MessageAuthenticationDeserializerModifier(ops));
     }
 }

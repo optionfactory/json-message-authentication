@@ -12,11 +12,32 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
     private final MessageAuthenticationOps ops;
     private final JavaType type;
     private final Duration validity;
+    private final ValueDeserializer<Object> delegate;
 
     public MessageAuthenticationDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity) {
+        this(ops, type, validity, null);
+    }
+
+    @SuppressWarnings("unchecked")
+    public MessageAuthenticationDeserializer(MessageAuthenticationOps ops, Duration validity, ValueDeserializer<?> delegate) {
+        this.ops = ops;
+        this.type = null;
+        this.validity = validity;
+        this.delegate = (ValueDeserializer<Object>) delegate;
+    }
+
+    private MessageAuthenticationDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity, ValueDeserializer<Object> delegate) {
         this.ops = ops;
         this.type = type;
         this.validity = validity;
+        this.delegate = delegate;
+    }
+
+    @Override
+    public void resolve(DeserializationContext context) {
+        if (delegate != null) {
+            delegate.resolve(context);
+        }
     }
 
     @Override
@@ -30,6 +51,10 @@ public class MessageAuthenticationDeserializer extends ValueDeserializer<Object>
         }
         final var verifiedBytes = ops.verifyAndDecode(value, validity);
         try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), verifiedBytes)) {
+            if (delegate != null) {
+                nestedParser.nextToken();
+                return delegate.deserialize(nestedParser, context);
+            }
             return nestedParser.readValueAs(type);
         }
     }
