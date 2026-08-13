@@ -10,8 +10,8 @@
     <url>https://github.com/optionfactory/json-message-authentication</url>
     <licenses>
         <license>
-            <name>Simplified BSD License</name>
-            <url>http://www.opensource.org/licenses/BSD-3-Clause</url>
+            <name>The BSD 2-Clause License</name>
+            <url>https://opensource.org/licenses/BSD-2-Clause</url>
             <distribution>repo</distribution>
         </license>
     </licenses>

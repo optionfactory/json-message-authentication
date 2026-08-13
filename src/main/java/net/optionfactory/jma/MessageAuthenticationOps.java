@@ -18,6 +18,18 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import net.optionfactory.jma.stores.ConsumedTokenStore;
 
+/// Authenticates and optionally encrypts self-contained JSON message tokens,
+/// with optional single-use (replay-protected) semantics. Tokens have the form
+/// `nonce.createdAt.payload.hmac` (dot-separated, url-safe base64 parts).
+///
+/// Two modes: [ #authenticate ]/[ #verifyAndDecode ] provide **integrity only**
+/// (the payload is embedded in clear); [ #encryptThenAuthenticate ]/
+/// [ #authenticateThenDecrypt ] also AES-encrypt the payload.
+///
+/// Decoders return a [SingleUse] wrapping the payload and a [SingleUse#recycle]
+/// action that re-enables one more decode when the consuming operation failed.
+/// The `attempts` argument bounds total decodes: `0` disables single-use, `1` is
+/// strict (one decode, no recycle), `N` allows up to `N`.
 public class MessageAuthenticationOps {
 
     private final Base64.Encoder b64enc = Base64.getUrlEncoder().withoutPadding();
@@ -38,6 +50,13 @@ public class MessageAuthenticationOps {
         this.clock = clock;
     }
 
+    /// Builds an ops with raw keys.
+    ///
+    /// @param consumedTokenStore tracks consumed tokens for replay protection.
+    /// @param aesKey             32-byte AES key.
+    /// @param hmacKey            64-byte HMAC-SHA256 key.
+    /// @param random             source of nonces/IVs.
+    /// @param clock              millisecond clock used for token timestamps/expiry.
     public static MessageAuthenticationOps create(ConsumedTokenStore consumedTokenStore, byte[] aesKey, byte[] hmacKey, SecureRandom random, Supplier<Long> clock) {
         if (aesKey.length != 32) {
             throw new MessageAuthenticationError("aesKey must be 32B long");
@@ -54,6 +73,7 @@ public class MessageAuthenticationOps {
         );
     }
 
+    /// Builds an ops with string-encoded keys (see [KeyEncoding]).
     public static MessageAuthenticationOps create(ConsumedTokenStore consumedTokenStore, String encodedAesKey, String encodedHmacKey, SecureRandom random, Supplier<Long> clock, KeyEncoding keyEncoding) {
         final var aesKey = keyEncoding.decode(encodedAesKey);
         final var hmacKey = keyEncoding.decode(encodedHmacKey);
@@ -86,6 +106,8 @@ public class MessageAuthenticationOps {
         }
     }
 
+    /// Produces an authenticated (integrity-only) token. The payload is embedded
+    /// in clear; use [ #encryptThenAuthenticate ] when confidentiality is needed.
     public String encryptThenAuthenticate(byte[] clearText) {
         final var iv = randomBytes(ivLength);
         final var createdAt = clock.get();
@@ -109,6 +131,9 @@ public class MessageAuthenticationOps {
         }
     }
 
+    /// Verifies the HMAC and validity window, then decrypts an
+    /// [ #encryptThenAuthenticate ] token. See [ #verifyAndDecode ] for the
+    /// `attempts` / [SingleUse] contract.
     public SingleUse<byte[]> authenticateThenDecrypt(String value, Duration validity, int attempts) {
         MessageAuthenticationError.enforce(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
         MessageAuthenticationError.enforce(attempts >= 0, "attempts must be >= 0");
@@ -157,6 +182,8 @@ public class MessageAuthenticationOps {
         return new SingleUse<>(clearText, () -> MessageAuthenticationError.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
     }
 
+    /// Produces an authenticated (integrity-only) token. The payload is embedded
+    /// in clear; use [ #encryptThenAuthenticate ] when confidentiality is needed.
     public String authenticate(byte[] clearText) {
 
         final var createdAt = clock.get();
@@ -173,6 +200,16 @@ public class MessageAuthenticationOps {
         );
     }
 
+    /// Verifies the HMAC and validity window of an authenticated token, optionally
+    /// consuming it for replay protection, and returns the decoded payload.
+    ///
+    /// @param authenticated the token produced by [ #authenticate ].
+    /// @param validity      how long the token remains valid (must be positive).
+    /// @param attempts      single-use policy: `0` disables it (no consumption,
+    ///                      [SingleUse#recycle] is a no-op); `1` enables strict
+    ///                      single-use (one decode, `recycle` throws); `N` allows
+    ///                      up to `N` decodes, with `recycle` re-enabling one more.
+    /// @return the payload and a [SingleUse#recycle] action.
     public SingleUse<byte[]> verifyAndDecode(String authenticated, Duration validity, int attempts) {
         MessageAuthenticationError.enforce(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
         MessageAuthenticationError.enforce(attempts >= 0, "attempts must be >= 0");

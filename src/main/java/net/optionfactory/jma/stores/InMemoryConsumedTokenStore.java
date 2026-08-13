@@ -5,6 +5,11 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 
+/// In-process [ConsumedTokenStore] backed by a
+/// [java.util.concurrent.ConcurrentHashMap]. State is **not** shared across
+/// processes or instances, and expired entries are purged lazily on subsequent
+/// operations. For multi-instance deployments, implement [ConsumedTokenStore]
+/// against a shared store (e.g. Redis).
 public class InMemoryConsumedTokenStore implements ConsumedTokenStore {
 
     private record State(long expiresAt, int consumed, boolean blocked) {
