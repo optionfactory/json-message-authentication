@@ -15,7 +15,7 @@ public class MessageAuthenticationSerializerModifier extends ValueSerializerModi
 
     @Override
     public ValueSerializer<?> modifySerializer(SerializationConfig config, BeanDescription.Supplier beanDesc, ValueSerializer<?> serializer) {
-        final var annotation = beanDesc.getClassInfo().getAnnotation(MessageAuthentication.class);
+        final var annotation = MessageAuthenticationAnnotationIntrospector.find(beanDesc.getClassInfo());
         if (annotation == null) {
             return serializer;
         }

@@ -15,7 +15,7 @@ public class MessageAuthenticationDeserializerModifier extends ValueDeserializer
 
     @Override
     public ValueDeserializer<?> modifyDeserializer(DeserializationConfig config, BeanDescription.Supplier beanDesc, ValueDeserializer<?> deserializer) {
-        final var annotation = beanDesc.getClassInfo().getAnnotation(MessageAuthentication.class);
+        final var annotation = MessageAuthenticationAnnotationIntrospector.find(beanDesc.getClassInfo());
         if (annotation == null) {
             return deserializer;
         }

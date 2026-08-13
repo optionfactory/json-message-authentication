@@ -39,6 +39,27 @@ public record ResetRequest(
 Serialization produces the token; deserialization verifies the HMAC and validity
 window, then decodes. `attempts` controls single-use semantics (see below).
 
+### As a meta-annotation (bundle)
+
+`@MessageAuthentication` may be placed on your own annotation to fix a set of
+defaults, then the bundle used in place of the full declaration:
+
+```java
+@MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED, validity = 1, unit = ChronoUnit.HOURS, attempts = 1)
+@Retention(RetentionPolicy.RUNTIME)
+@Target({ElementType.FIELD, ElementType.PARAMETER})
+public @interface ResetToken {}
+
+public record ResetRequest(String userId, @ResetToken String token) {}
+```
+
+The bundle annotation must be `@Retention(RUNTIME)`, and its `@Target` should
+mirror `@MessageAuthentication`'s (`FIELD`, `PARAMETER`; add `TYPE` for
+type-level bundles). **`PARAMETER` is required** for the bundle to work on
+record components — records deserialize through the constructor parameter, so an
+annotation declared `@Target(FIELD)` only would be invisible to deserialization.
+A direct `@MessageAuthentication` takes precedence over a bundle annotation.
+
 ### Standalone (no Jackson)
 
 ```java

@@ -25,8 +25,17 @@ import java.time.temporal.ChronoUnit;
 /// independently (the value is processed twice). This is functional,
 /// serialization wraps the inner layer's output, and deserialization peels
 /// them back in reverse order, but redundant. Prefer annotating only one.
+///
+/// May be used as a **meta-annotation**: place it on your own annotation to
+/// create a bundle with fixed defaults (e.g. `@ResetToken`). That bundle
+/// annotation must be declared `@Retention(RUNTIME)` and its `@Target` should
+/// mirror this one — `FIELD`, `PARAMETER`, plus `TYPE` for type-level bundles.
+/// In particular `PARAMETER` is required for the bundle to be recognized on
+/// **record components**, since records deserialize through the constructor
+/// parameter. A direct `@MessageAuthentication` takes precedence over a
+/// meta-annotated one.
 @Documented
-@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.TYPE})
+@Target({ElementType.FIELD, ElementType.PARAMETER, ElementType.TYPE, ElementType.ANNOTATION_TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 public @interface MessageAuthentication {
 
