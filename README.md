@@ -78,8 +78,8 @@ byte[] payload = su.value();
 - `1` — **strict** single-use: one decode, no retry.
 - `N` — up to `N` decodes.
 
-Decoding consumes one attempt and blocks the token. If the operation that used the
-decoded value fails, call `SingleUse.recycle()` to re-enable one more decode:
+Decoding consumes one attempt and denylists the token. If the operation that used the
+decoded value fails, call `SingleUse.recycle()` to re-enable (remove from denylist) one more decode:
 
 ```java
 SingleUse<Foo> su = ops.authenticateThenDecrypt(token, validity, 3);
@@ -171,7 +171,7 @@ it consumes strictly and discards the handle, so there is no retry path.
   keep `validity` short.
 - The bundled `InMemoryConsumedTokenStore` is **per-instance** — its state is not
   shared across processes. For a multi-instance deployment, implement
-  `ConsumedTokenStore` against a shared store (e.g. Redis) so consumption is
+  `ConsumedTokenStore` against a shared store (e.g. Postgres) so consumption is
   coordinated.
 
 **Crypto choices**
