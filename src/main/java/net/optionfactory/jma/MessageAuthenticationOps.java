@@ -31,9 +31,10 @@ import net.optionfactory.jma.stores.ConsumedTokenStore;
 /// [ #authenticateThenDecrypt ] also AES-encrypt the payload.
 ///
 /// Decoders return a [SingleUse] wrapping the payload and a [SingleUse#recycle]
-/// action that re-enables one more decode when the consuming operation failed.
-/// The `attempts` argument bounds total decodes: `0` disables single-use, `1` is
-/// strict (one decode, no recycle), `N` allows up to `N`.
+/// or [SingleUse#refund] action for, respectively, an action that ran and
+/// failed (bounded retry) and one that never ran (attempt given back). The
+/// `attempts` argument bounds decodes net of refunds: `0` disables single-use,
+/// `1` is strict (one non-refunded decode), `N` allows up to `N`.
 public class MessageAuthenticationOps {
 
     private final Base64.Encoder b64enc = Base64.getUrlEncoder().withoutPadding();

@@ -21,10 +21,9 @@ nonce.window.payload.hmac
 at issuance; `hmac` is HMAC-SHA256 over `tag || nonce || window || payload` —
 a one-byte mode tag, then the parts in the order they appear on the wire. The
 tag domain-separates the two modes, so a token minted in one mode can never
-authenticate in the other. Because
-the validity is embedded in the token and covered by the HMAC, it is committed
-at issuance: verifiers derive the expiry from the token itself and cannot
-reinterpret or extend it. Two modes:
+authenticate in the other. Because the validity is embedded in the token and
+covered by the HMAC, it is committed at issuance: verifiers derive the expiry
+from the token itself and cannot reinterpret or extend it. Two modes:
 
 - **`AUTHENTICATED`** — integrity only. The payload is embedded in clear text.
 - **`AUTHENTICATED_ENCRYPTED`** — the payload is AES-256-CBC encrypted and the
@@ -82,7 +81,7 @@ byte[] payload = su.value();
 
 - `0` (default) — single-use **disabled**. The token is freely decodable until it
   expires. Matches pre-3.0 behavior.
-- `1` — **strict** single-use: one decode, no retry.
+- `1` — **strict** single-use: one decode — refunds excepted (see caveats).
 - `N` — up to `N` decodes.
 
 Decoding consumes one attempt and denylists the token. Two recovery actions
@@ -145,8 +144,11 @@ static class ConfirmController {
     public void confirm(@RequestBody SingleUse<ConfirmRequest> body) {
         try {
             handle(body.value());
+        } catch (UpstreamUnavailableException e) {
+            body.refund();  // action never ran: give every attempt back
+            throw e;
         } catch (Exception e) {
-            body.recycle();   // retry the whole request on failure
+            body.recycle();   // action ran and failed: retry the whole request
             throw e;
         }
         // success → do nothing; every token in the bean stays blocked
