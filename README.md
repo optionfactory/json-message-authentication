@@ -18,7 +18,8 @@ nonce.window.payload.hmac
 ```
 
 `window` packs the millisecond creation timestamp and the validity (ttl) fixed
-at issuance; `hmac` is HMAC-SHA256 over `window || nonce || payload`. Because
+at issuance; `hmac` is HMAC-SHA256 over `nonce || window || payload` — the
+parts are MAC'd in the same order they appear on the wire. Because
 the validity is embedded in the token and covered by the HMAC, it is committed
 at issuance: verifiers derive the expiry from the token itself and cannot
 reinterpret or extend it. Two modes:

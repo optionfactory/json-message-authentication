@@ -92,8 +92,9 @@ public class MessageAuthenticationOps {
         }
     }
 
-    /// Big-endian `createdAt || ttl` — the authenticated window: it is both the
-    /// second wire part (base64-encoded) and the prefix of the MAC input.
+    /// Big-endian `createdAt || ttl` — the authenticated window: it is both a
+    /// wire part (base64-encoded, second) and an input of the MAC, in the same
+    /// order as on the wire.
     private static byte[] encodeWindow(long createdAt, long validityMs) {
         return ByteBuffer.allocate(16).putLong(createdAt).putLong(validityMs).array();
     }
@@ -143,8 +144,8 @@ public class MessageAuthenticationOps {
             final var cipherText = initAesCbcPkcs7(iv, Cipher.ENCRYPT_MODE).doFinal(clearText);
 
             final var mac = initHmacSha256();
-            mac.update(encodeWindow(createdAt, validityMs));
             mac.update(iv);
+            mac.update(encodeWindow(createdAt, validityMs));
             final var computedHmac = mac.doFinal(cipherText);
 
             return String.format("%s.%s.%s.%s",
@@ -186,8 +187,8 @@ public class MessageAuthenticationOps {
         final var window = decodeWindow(windowBytes, split[1]);
 
         final var mac = initHmacSha256();
-        mac.update(windowBytes);
         mac.update(iv);
+        mac.update(windowBytes);
         final var computedMessageHmac = mac.doFinal(cipherText);
 
         TokenMalformed.enforce(MessageDigest.isEqual(computedMessageHmac, receivedHmac), "tampering");
@@ -223,8 +224,8 @@ public class MessageAuthenticationOps {
         final var createdAt = clock.get();
         final var salt = randomBytes(saltLength);
         final var mac = initHmacSha256();
-        mac.update(encodeWindow(createdAt, validityMs));
         mac.update(salt);
+        mac.update(encodeWindow(createdAt, validityMs));
         final var computedHmacValue = mac.doFinal(clearText);
         return String.format("%s.%s.%s.%s",
                 b64enc.encodeToString(salt),
@@ -269,8 +270,8 @@ public class MessageAuthenticationOps {
         final var window = decodeWindow(windowBytes, split[1]);
 
         final var mac = initHmacSha256();
-        mac.update(windowBytes);
         mac.update(salt);
+        mac.update(windowBytes);
         final var computedHmacValue = mac.doFinal(clearText);
 
         TokenMalformed.enforce(MessageDigest.isEqual(computedHmacValue, hmacValue), "tampering");
