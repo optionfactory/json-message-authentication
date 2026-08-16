@@ -39,6 +39,7 @@ public class SingleUseDeserializer extends ValueDeserializer<Object> {
             throw new IllegalArgumentException("SingleUse<?> requires a concrete type parameter");
         }
         final var accumulator = new Accumulator();
+        final var previous = (Accumulator) context.getAttribute(Accumulator.KEY);
         context.setAttribute(Accumulator.KEY, accumulator);
         try {
             final ValueDeserializer<Object> inner = (ValueDeserializer<Object>) context.findContextualValueDeserializer(innerType, null);
@@ -47,6 +48,8 @@ public class SingleUseDeserializer extends ValueDeserializer<Object> {
         } catch (RuntimeException e) {
             accumulator.rollback();
             throw e;
+        } finally {
+            context.setAttribute(Accumulator.KEY, previous);
         }
     }
 

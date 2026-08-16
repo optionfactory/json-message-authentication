@@ -280,4 +280,33 @@ public class SingleUseJacksonTest {
         final SingleUse<ClassLevel> retry = mapper.readValue(json, CLASS_LEVEL);
         Assertions.assertEquals(src, retry.value());
     }
+
+    @Test
+    public void successiveRootValuesKeepIndependentAccumulators() throws Exception {
+        final var json1 = mapper.writeValueAsString(new TwoFields("a", "b"));
+        final var json2 = mapper.writeValueAsString(new TwoFields("c", "d"));
+        final var both = mapper.readValue("[%s,%s]".formatted(json1, json2), new TypeReference<java.util.List<SingleUse<TwoFields>>>() {
+        });
+        Assertions.assertEquals(2, both.size());
+        // recycling the first root's handle must not re-open the second root's tokens
+        both.get(0).recycle();
+        Assertions.assertThrows(Exception.class, () -> mapper.readValue(json2, TWO));
+    }
+
+    public record Wrapper(SingleUse<TwoFields> nested) {
+    }
+
+    @Test
+    public void nestedSingleUseHandlesStayIndependent() {
+        final var json = mapper.writeValueAsString(new Wrapper(new SingleUse<>(new TwoFields("a", "b"), () -> {})));
+        final var wrapped = mapper.readValue(json, Wrapper.class);
+        final SingleUse<TwoFields> inner = wrapped.nested();
+        // the inner handle owns only the bean's tokens: recycling re-opens them...
+        inner.recycle();
+        final var retryJson = mapper.writeValueAsString(new TwoFields("a", "b"));
+        final SingleUse<TwoFields> retry = mapper.readValue(retryJson, TWO);
+        Assertions.assertEquals(new TwoFields("a", "b"), retry.value());
+        // ...and the re-consumed tokens stay blocked until recycled again
+        Assertions.assertThrows(Exception.class, () -> mapper.readValue(retryJson, TWO));
+    }
 }
