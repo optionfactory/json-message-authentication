@@ -46,7 +46,9 @@ public @interface MessageAuthentication {
     /// @return the authentication/encryption mode.
     Mode mode() default Mode.AUTHENTICATED_ENCRYPTED;
 
-    /// @return how long the token remains valid.
+    /// @return how long the token remains valid. Embedded in the token and
+    /// MAC-protected at serialization time, so it is committed at issuance and
+    /// cannot be reinterpreted at verification time.
     long validity() default 6;
 
     /// @return the time unit for [ validity() ].

@@ -1,6 +1,5 @@
 package net.optionfactory.jma;
 
-import java.time.Duration;
 import tools.jackson.core.JsonParser;
 import tools.jackson.databind.DeserializationContext;
 import tools.jackson.databind.JavaType;
@@ -10,27 +9,24 @@ public class MessageAuthenticationEncryptedDeserializer extends ValueDeserialize
 
     private final MessageAuthenticationOps ops;
     private final JavaType type;
-    private final Duration validity;
     private final int attempts;
     private final ValueDeserializer<Object> delegate;
 
-    public MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity, int attempts) {
-        this(ops, type, validity, attempts, null);
+    public MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, JavaType type, int attempts) {
+        this(ops, type, attempts, null);
     }
 
     @SuppressWarnings("unchecked")
-    public MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, Duration validity, int attempts, ValueDeserializer<?> delegate) {
+    public MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, int attempts, ValueDeserializer<?> delegate) {
         this.ops = ops;
         this.type = null;
-        this.validity = validity;
         this.attempts = attempts;
         this.delegate = (ValueDeserializer<Object>) delegate;
     }
 
-    private MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, JavaType type, Duration validity, int attempts, ValueDeserializer<Object> delegate) {
+    private MessageAuthenticationEncryptedDeserializer(MessageAuthenticationOps ops, JavaType type, int attempts, ValueDeserializer<Object> delegate) {
         this.ops = ops;
         this.type = type;
-        this.validity = validity;
         this.attempts = attempts;
         this.delegate = delegate;
     }
@@ -45,7 +41,7 @@ public class MessageAuthenticationEncryptedDeserializer extends ValueDeserialize
     @Override
     public Object deserialize(JsonParser parser, DeserializationContext context) {
         final String value = parser.getValueAsString();
-        final var singleUse = ops.authenticateThenDecrypt(value, validity, attempts);
+        final var singleUse = ops.authenticateThenDecrypt(value, attempts);
         Accumulator.register(context, singleUse);
         final var clearTextBytes = singleUse.value();
         try (final var nestedParser = context.tokenStreamFactory().createParser(parser.objectReadContext(), clearTextBytes)) {

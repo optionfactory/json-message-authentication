@@ -2,6 +2,7 @@ package net.optionfactory.jma;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ValueSerializer;
@@ -9,15 +10,17 @@ import tools.jackson.databind.ValueSerializer;
 public class MessageAuthenticationSerializer extends ValueSerializer<Object> {
 
     private final MessageAuthenticationOps ops;
+    private final Duration validity;
     private final ValueSerializer<Object> delegate;
 
-    public MessageAuthenticationSerializer(MessageAuthenticationOps ops) {
-        this(ops, null);
+    public MessageAuthenticationSerializer(MessageAuthenticationOps ops, Duration validity) {
+        this(ops, validity, null);
     }
 
     @SuppressWarnings("unchecked")
-    public MessageAuthenticationSerializer(MessageAuthenticationOps ops, ValueSerializer<?> delegate) {
+    public MessageAuthenticationSerializer(MessageAuthenticationOps ops, Duration validity, ValueSerializer<?> delegate) {
         this.ops = ops;
+        this.validity = validity;
         this.delegate = (ValueSerializer<Object>) delegate;
     }
 
@@ -39,7 +42,7 @@ public class MessageAuthenticationSerializer extends ValueSerializer<Object> {
             }
         }
         final var clearTextBytes = utf8os.toByteArray();
-        final var authenticatedMessage = ops.authenticate(clearTextBytes);
+        final var authenticatedMessage = ops.authenticate(clearTextBytes, validity);
         gen.writeStartObject();
         gen.writeName("msg");
         if (delegate != null) {

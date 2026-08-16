@@ -60,12 +60,11 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
             return null;
         }
 
-        final var validity = annotation.unit().getDuration().multipliedBy(annotation.validity());
         final int attempts = annotation.attempts();
         if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
-            return new MessageAuthenticationDeserializer(ops, am.getType(), validity, attempts);
+            return new MessageAuthenticationDeserializer(ops, am.getType(), attempts);
         }
-        return new MessageAuthenticationEncryptedDeserializer(ops, am.getType(), validity, attempts);
+        return new MessageAuthenticationEncryptedDeserializer(ops, am.getType(), attempts);
 
     }
 
@@ -78,10 +77,11 @@ public class MessageAuthenticationAnnotationIntrospector extends AnnotationIntro
         if (annotation == null) {
             return null;
         }
+        final var validity = annotation.unit().getDuration().multipliedBy(annotation.validity());
         if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
-            return new MessageAuthenticationSerializer(ops);
+            return new MessageAuthenticationSerializer(ops, validity);
         }
-        return new MessageAuthenticationEncryptedSerializer(ops);
+        return new MessageAuthenticationEncryptedSerializer(ops, validity);
     }
 
     @Override

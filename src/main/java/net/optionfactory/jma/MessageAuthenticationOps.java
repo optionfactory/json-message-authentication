@@ -20,7 +20,11 @@ import net.optionfactory.jma.stores.ConsumedTokenStore;
 
 /// Authenticates and optionally encrypts self-contained JSON message tokens,
 /// with optional single-use (replay-protected) semantics. Tokens have the form
-/// `nonce.createdAt.payload.hmac` (dot-separated, url-safe base64 parts).
+/// `nonce.window.payload.hmac` (dot-separated, url-safe base64 parts), where
+/// `window` packs the millisecond creation timestamp and the validity (ttl)
+/// fixed at issuance. Because the validity is embedded in the token and covered
+/// by the HMAC, it is committed at issuance and cannot be reinterpreted (or
+/// extended) at verification time.
 ///
 /// Two modes: [ #authenticate ]/[ #verifyAndDecode ] provide **integrity only**
 /// (the payload is embedded in clear); [ #encryptThenAuthenticate ]/
@@ -88,6 +92,21 @@ public class MessageAuthenticationOps {
         }
     }
 
+    /// Big-endian `createdAt || ttl` — the authenticated window: it is both the
+    /// second wire part (base64-encoded) and the prefix of the MAC input.
+    private static byte[] encodeWindow(long createdAt, long validityMs) {
+        return ByteBuffer.allocate(16).putLong(createdAt).putLong(validityMs).array();
+    }
+
+    private record Window(long createdAt, long ttlMillis) {
+
+        /// Token-intrinsic expiry, saturating on overflow so a crafted
+        /// near-`Long.MAX_VALUE` window cannot wrap into the past.
+        long expiresAt() {
+            return Long.MAX_VALUE - createdAt < ttlMillis ? Long.MAX_VALUE : createdAt + ttlMillis;
+        }
+    }
+
     private Mac initHmacSha256() {
         try {
             final var mac = Mac.getInstance("HmacSHA256");
@@ -108,9 +127,15 @@ public class MessageAuthenticationOps {
         }
     }
 
-    /// Produces an authenticated (integrity-only) token. The payload is embedded
-    /// in clear; use [ #encryptThenAuthenticate ] when confidentiality is needed.
-    public String encryptThenAuthenticate(byte[] clearText) {
+    /// Produces an authenticated and encrypted token: the payload is AES-CBC
+    /// encrypted, then MAC'd together with the window and IV (encrypt-then-MAC).
+    ///
+    /// @param clearText the payload to protect.
+    /// @param validity  how long the token remains valid; embedded in the token
+    ///                  and MAC-protected, so it is fixed at issuance.
+    public String encryptThenAuthenticate(byte[] clearText, Duration validity) {
+        require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+        final var validityMs = validity.toMillis();
         final var iv = randomBytes(ivLength);
         final var createdAt = clock.get();
 
@@ -118,13 +143,13 @@ public class MessageAuthenticationOps {
             final var cipherText = initAesCbcPkcs7(iv, Cipher.ENCRYPT_MODE).doFinal(clearText);
 
             final var mac = initHmacSha256();
-            mac.update(ByteBuffer.allocate(8).putLong(createdAt).array());
+            mac.update(encodeWindow(createdAt, validityMs));
             mac.update(iv);
             final var computedHmac = mac.doFinal(cipherText);
 
             return String.format("%s.%s.%s.%s",
                     b64enc.encodeToString(iv),
-                    createdAt,
+                    b64enc.encodeToString(encodeWindow(createdAt, validityMs)),
                     b64enc.encodeToString(cipherText),
                     b64enc.encodeToString(computedHmac)
             );
@@ -135,41 +160,41 @@ public class MessageAuthenticationOps {
 
     /// Verifies the HMAC and validity window, then decrypts an
     /// [ #encryptThenAuthenticate ] token. See [ #verifyAndDecode ] for the
-    /// `attempts` / [SingleUse] contract.
-    public SingleUse<byte[]> authenticateThenDecrypt(String value, Duration validity, int attempts) {
-        require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+    /// `attempts` / [SingleUse] contract. The validity window is read from the
+    /// token (it is MAC-protected), so it cannot be reinterpreted here.
+    public SingleUse<byte[]> authenticateThenDecrypt(String value, int attempts) {
         require(attempts >= 0, "attempts must be >= 0");
         TokenMalformed.enforce(value != null, "missing token");
-        final long validityMs = validity.toMillis();
         final var split = value.split("\\.");
         TokenMalformed.enforce(split.length == 4, "invalid parts");
 
         final byte[] iv;
-        final long createdAt;
+        final byte[] windowBytes;
         final byte[] cipherText;
         final byte[] receivedHmac;
 
         try {
             iv = b64dec.decode(split[0]);
-            createdAt = Long.parseLong(split[1]);
+            windowBytes = b64dec.decode(split[1]);
             cipherText = b64dec.decode(split[2]);
             receivedHmac = b64dec.decode(split[3]);
         } catch (IllegalArgumentException ex) {
             throw new TokenMalformed("malformed token encoding");
         }
 
-        final var now = clock.get();
         TokenMalformed.enforce(iv.length == ivLength, "invalid iv");
-        TokenMalformed.enforce(split[1].equals(Long.toString(createdAt)), "invalid createdAt");
-        final var expiresAt = createdAt + validityMs;
-        TokenExpired.enforce(expiresAt > now, "expired");
+        final var window = decodeWindow(windowBytes, split[1]);
 
         final var mac = initHmacSha256();
-        mac.update(ByteBuffer.allocate(8).putLong(createdAt).array());
+        mac.update(windowBytes);
         mac.update(iv);
         final var computedMessageHmac = mac.doFinal(cipherText);
 
         TokenMalformed.enforce(MessageDigest.isEqual(computedMessageHmac, receivedHmac), "tampering");
+
+        final var now = clock.get();
+        final var expiresAt = window.expiresAt();
+        TokenExpired.enforce(expiresAt > now, "expired");
 
         final byte[] clearText;
         try {
@@ -188,66 +213,71 @@ public class MessageAuthenticationOps {
 
     /// Produces an authenticated (integrity-only) token. The payload is embedded
     /// in clear; use [ #encryptThenAuthenticate ] when confidentiality is needed.
-    public String authenticate(byte[] clearText) {
-
+    ///
+    /// @param clearText the payload to protect.
+    /// @param validity  how long the token remains valid; embedded in the token
+    ///                  and MAC-protected, so it is fixed at issuance.
+    public String authenticate(byte[] clearText, Duration validity) {
+        require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+        final var validityMs = validity.toMillis();
         final var createdAt = clock.get();
         final var salt = randomBytes(saltLength);
         final var mac = initHmacSha256();
-        mac.update(ByteBuffer.allocate(8).putLong(createdAt).array());
+        mac.update(encodeWindow(createdAt, validityMs));
         mac.update(salt);
         final var computedHmacValue = mac.doFinal(clearText);
         return String.format("%s.%s.%s.%s",
                 b64enc.encodeToString(salt),
-                createdAt,
+                b64enc.encodeToString(encodeWindow(createdAt, validityMs)),
                 b64enc.encodeToString(clearText),
                 b64enc.encodeToString(computedHmacValue)
         );
     }
 
     /// Verifies the HMAC and validity window of an authenticated token, optionally
-    /// consuming it for replay protection, and returns the decoded payload.
+    /// consuming it for replay protection, and returns the decoded payload. The
+    /// validity window is read from the token (it is MAC-protected), so it cannot
+    /// be reinterpreted here.
     ///
     /// @param authenticated the token produced by [ #authenticate ].
-    /// @param validity      how long the token remains valid (must be positive).
     /// @param attempts      single-use policy: `0` disables it (no consumption,
     ///                      [SingleUse#recycle] is a no-op); `1` enables strict
     ///                      single-use (one decode, `recycle` throws); `N` allows
     ///                      up to `N` decodes, with `recycle` re-enabling one more.
     /// @return the payload and a [SingleUse#recycle] action.
-    public SingleUse<byte[]> verifyAndDecode(String authenticated, Duration validity, int attempts) {
-        require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
+    public SingleUse<byte[]> verifyAndDecode(String authenticated, int attempts) {
         require(attempts >= 0, "attempts must be >= 0");
         TokenMalformed.enforce(authenticated != null, "missing token");
-        final long validityMs = validity.toMillis();
         final var split = authenticated.split("\\.");
         TokenMalformed.enforce(split.length == 4, "invalid parts");
 
         final byte[] salt;
-        final long createdAt;
-        final byte[] hmacValue;
+        final byte[] windowBytes;
         final byte[] clearText;
+        final byte[] hmacValue;
 
         try {
             salt = b64dec.decode(split[0]);
-            createdAt = Long.parseLong(split[1]);
+            windowBytes = b64dec.decode(split[1]);
             clearText = b64dec.decode(split[2]);
             hmacValue = b64dec.decode(split[3]);
         } catch (IllegalArgumentException ex) {
             throw new TokenMalformed("malformed token encoding");
         }
 
-        final var now = clock.get();
         TokenMalformed.enforce(salt.length == saltLength, "invalid salt");
-        TokenMalformed.enforce(split[1].equals(Long.toString(createdAt)), "invalid createdAt");
-        final var expiresAt = createdAt + validityMs;
-        TokenExpired.enforce(expiresAt > now, "expired");
+        final var window = decodeWindow(windowBytes, split[1]);
 
-        final var sha256 = initHmacSha256();
-        sha256.update(ByteBuffer.allocate(8).putLong(createdAt).array());
-        sha256.update(salt);
-        final var computedHmacValue = sha256.doFinal(clearText);
+        final var mac = initHmacSha256();
+        mac.update(windowBytes);
+        mac.update(salt);
+        final var computedHmacValue = mac.doFinal(clearText);
 
         TokenMalformed.enforce(MessageDigest.isEqual(computedHmacValue, hmacValue), "tampering");
+
+        final var now = clock.get();
+        final var expiresAt = window.expiresAt();
+        TokenExpired.enforce(expiresAt > now, "expired");
 
         if (attempts == 0) {
             return new SingleUse<>(clearText, () -> {});
@@ -255,6 +285,19 @@ public class MessageAuthenticationOps {
         final var messageId = split[3];
         TokenAlreadyUsed.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
         return new SingleUse<>(clearText, () -> TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
+    }
+
+    /// Decodes the 16-byte window into a [Window], rejecting non-canonical
+    /// encodings (padding, non-zero trailing bits) so that a single byte
+    /// sequence maps to exactly one wire encoding.
+    private static Window decodeWindow(byte[] windowBytes, String encoded) {
+        TokenMalformed.enforce(windowBytes.length == 16, "invalid window");
+        final var buf = ByteBuffer.wrap(windowBytes);
+        final long createdAt = buf.getLong();
+        final long ttlMillis = buf.getLong();
+        TokenMalformed.enforce(ttlMillis > 0, "invalid ttl");
+        TokenMalformed.enforce(Base64.getUrlEncoder().withoutPadding().encodeToString(windowBytes).equals(encoded), "invalid window encoding");
+        return new Window(createdAt, ttlMillis);
     }
 
     public enum KeyEncoding {

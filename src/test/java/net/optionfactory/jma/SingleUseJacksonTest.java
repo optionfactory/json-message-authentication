@@ -3,7 +3,6 @@ package net.optionfactory.jma;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Clock;
-import java.time.Duration;
 import net.optionfactory.jma.MessageAuthentication.Mode;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import net.optionfactory.jma.stores.InMemoryConsumedTokenStore;
@@ -150,7 +149,7 @@ public class SingleUseJacksonTest {
         b.setCharAt(0, b.charAt(0) == 'A' ? 'B' : 'A');
         ((ObjectNode) root.get("b")).put("authmsg", b.toString());
         Assertions.assertThrows(Exception.class, () -> mapper.readValue(mapper.writeValueAsString(root), TWO));
-        final var a = ops.verifyAndDecode(aToken, Duration.ofSeconds(60), 3);
+        final var a = ops.verifyAndDecode(aToken, 3);
         Assertions.assertEquals("\"a\"", new String(a.value(), StandardCharsets.UTF_8));
     }
 
@@ -194,7 +193,7 @@ public class SingleUseJacksonTest {
         b.setCharAt(0, b.charAt(0) == 'A' ? 'B' : 'A');
         root.put("b", b.toString());
         Assertions.assertThrows(Exception.class, () -> mapper.readValue(mapper.writeValueAsString(root), ENC_TWO));
-        final var a = ops.authenticateThenDecrypt(aToken, Duration.ofSeconds(60), 3);
+        final var a = ops.authenticateThenDecrypt(aToken, 3);
         Assertions.assertEquals("\"a\"", new String(a.value(), StandardCharsets.UTF_8));
     }
 
@@ -251,7 +250,7 @@ public class SingleUseJacksonTest {
         final var json = mapper.writeValueAsString(new TwoFields("a", "b"));
         final JsonNode root = mapper.readTree(json);
         final String aToken = root.get("a").get("authmsg").asString();
-        ops.verifyAndDecode(aToken, Duration.ofSeconds(60), 3);
+        ops.verifyAndDecode(aToken, 3);
         Assertions.assertThrows(Exception.class, () -> mapper.readValue(mapper.writeValueAsString(root), TWO));
     }
 

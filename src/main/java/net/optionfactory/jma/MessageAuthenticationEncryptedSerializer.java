@@ -1,6 +1,7 @@
 package net.optionfactory.jma;
 
 import java.io.ByteArrayOutputStream;
+import java.time.Duration;
 import tools.jackson.core.JsonGenerator;
 import tools.jackson.databind.SerializationContext;
 import tools.jackson.databind.ValueSerializer;
@@ -8,15 +9,17 @@ import tools.jackson.databind.ValueSerializer;
 public class MessageAuthenticationEncryptedSerializer extends ValueSerializer<Object> {
 
     private final MessageAuthenticationOps ops;
+    private final Duration validity;
     private final ValueSerializer<Object> delegate;
 
-    public MessageAuthenticationEncryptedSerializer(MessageAuthenticationOps ops) {
-        this(ops, null);
+    public MessageAuthenticationEncryptedSerializer(MessageAuthenticationOps ops, Duration validity) {
+        this(ops, validity, null);
     }
 
     @SuppressWarnings("unchecked")
-    public MessageAuthenticationEncryptedSerializer(MessageAuthenticationOps ops, ValueSerializer<?> delegate) {
+    public MessageAuthenticationEncryptedSerializer(MessageAuthenticationOps ops, Duration validity, ValueSerializer<?> delegate) {
         this.ops = ops;
+        this.validity = validity;
         this.delegate = (ValueSerializer<Object>) delegate;
     }
 
@@ -37,7 +40,7 @@ public class MessageAuthenticationEncryptedSerializer extends ValueSerializer<Ob
                 nestedGenerator.writePOJO(value);
             }
         }
-        final var authenticatedCipherText = ops.encryptThenAuthenticate(utf8os.toByteArray());
+        final var authenticatedCipherText = ops.encryptThenAuthenticate(utf8os.toByteArray(), validity);
         gen.writePOJO(authenticatedCipherText);
     }
 

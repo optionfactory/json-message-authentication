@@ -27,8 +27,8 @@ public class SingleUseTest {
     @Test
     public void strictSingleUseRecycleThrowsTokenDepleted() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.authenticate(payload);
-        final var first = maops.verifyAndDecode(token, Duration.ofSeconds(5), 1);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
+        final var first = maops.verifyAndDecode(token, 1);
         Assertions.assertArrayEquals(payload, first.value());
         Assertions.assertThrows(TokenDepleted.class, first::recycle);
     }
@@ -36,18 +36,18 @@ public class SingleUseTest {
     @Test
     public void secondDecodeWithoutRecycleThrowsTokenAlreadyUsed() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.authenticate(payload);
-        maops.verifyAndDecode(token, Duration.ofSeconds(5), 3);
-        Assertions.assertThrows(TokenAlreadyUsed.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(5), 3));
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
+        maops.verifyAndDecode(token, 3);
+        Assertions.assertThrows(TokenAlreadyUsed.class, () -> maops.verifyAndDecode(token, 3));
     }
 
     @Test
     public void recycleAllowsRetryUpToAttempts() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.authenticate(payload);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
         final int attempts = 3;
         for (int i = 0; i != attempts; i++) {
-            final var su = maops.verifyAndDecode(token, Duration.ofSeconds(5), attempts);
+            final var su = maops.verifyAndDecode(token, attempts);
             Assertions.assertArrayEquals(payload, su.value());
             if (i != attempts - 1) {
                 su.recycle();
@@ -60,22 +60,22 @@ public class SingleUseTest {
     @Test
     public void recycleIsIdempotentUntilRedecoded() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.authenticate(payload);
-        final var first = maops.verifyAndDecode(token, Duration.ofSeconds(5), 3);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
+        final var first = maops.verifyAndDecode(token, 3);
         first.recycle();
         first.recycle();
-        final var second = maops.verifyAndDecode(token, Duration.ofSeconds(5), 3);
+        final var second = maops.verifyAndDecode(token, 3);
         Assertions.assertArrayEquals(payload, second.value());
     }
 
     @Test
     public void encryptedTokensCanBeRecycled() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.encryptThenAuthenticate(payload);
-        final var first = maops.authenticateThenDecrypt(token, Duration.ofSeconds(5), 2);
+        final var token = maops.encryptThenAuthenticate(payload, Duration.ofSeconds(5));
+        final var first = maops.authenticateThenDecrypt(token, 2);
         Assertions.assertArrayEquals(payload, first.value());
         first.recycle();
-        final var second = maops.authenticateThenDecrypt(token, Duration.ofSeconds(5), 2);
+        final var second = maops.authenticateThenDecrypt(token, 2);
         Assertions.assertArrayEquals(payload, second.value());
         Assertions.assertThrows(TokenDepleted.class, second::recycle);
     }
@@ -83,9 +83,9 @@ public class SingleUseTest {
     @Test
     public void encryptedAttemptsZeroMeansInfinite() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.encryptThenAuthenticate(payload);
+        final var token = maops.encryptThenAuthenticate(payload, Duration.ofSeconds(5));
         for (int i = 0; i != 5; i++) {
-            final var su = maops.authenticateThenDecrypt(token, Duration.ofSeconds(5), 0);
+            final var su = maops.authenticateThenDecrypt(token, 0);
             Assertions.assertArrayEquals(payload, su.value());
             su.recycle();
         }
@@ -94,9 +94,9 @@ public class SingleUseTest {
     @Test
     public void attemptsZeroMeansInfinite() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
-        final var token = maops.authenticate(payload);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
         for (int i = 0; i != 5; i++) {
-            final var su = maops.verifyAndDecode(token, Duration.ofSeconds(5), 0);
+            final var su = maops.verifyAndDecode(token, 0);
             Assertions.assertArrayEquals(payload, su.value());
             su.recycle();
         }
@@ -104,7 +104,7 @@ public class SingleUseTest {
 
     @Test
     public void negativeAttemptsIsRejectedAsIllegalArgument() {
-        final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, Duration.ofSeconds(5), -1));
+        final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8), Duration.ofSeconds(5));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, -1));
     }
 }

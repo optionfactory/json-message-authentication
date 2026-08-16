@@ -14,11 +14,14 @@ library, or a key-management system.
 A token is a string of four dot-separated, url-safe base64 parts:
 
 ```
-nonce.createdAt.payload.hmac
+nonce.window.payload.hmac
 ```
 
-`createdAt` is a millisecond timestamp; `hmac` is HMAC-SHA256 over
-`createdAt || nonce || payload`. Two modes:
+`window` packs the millisecond creation timestamp and the validity (ttl) fixed
+at issuance; `hmac` is HMAC-SHA256 over `window || nonce || payload`. Because
+the validity is embedded in the token and covered by the HMAC, it is committed
+at issuance: verifiers derive the expiry from the token itself and cannot
+reinterpret or extend it. Two modes:
 
 - **`AUTHENTICATED`** — integrity only. The payload is embedded in clear text.
 - **`AUTHENTICATED_ENCRYPTED`** — the payload is AES-256-CBC encrypted and the
@@ -36,8 +39,9 @@ public record ResetRequest(
 ) {}
 ```
 
-Serialization produces the token; deserialization verifies the HMAC and validity
-window, then decodes. `attempts` controls single-use semantics (see below).
+Serialization produces the token (embedding the annotation's `validity`);
+deserialization verifies the HMAC and validity window, then decodes. `attempts`
+controls single-use semantics (see below).
 
 ### As a meta-annotation (bundle)
 
@@ -64,8 +68,8 @@ A direct `@MessageAuthentication` takes precedence over a bundle annotation.
 
 ```java
 var ops = MessageAuthenticationOps.create(store, aesKey, hmacKey, random, clock, KeyEncoding.BASE_64);
-String token = ops.encryptThenAuthenticate(payload);
-SingleUse<byte[]> su = ops.authenticateThenDecrypt(token, Duration.ofHours(1), 1);
+String token = ops.encryptThenAuthenticate(payload, Duration.ofHours(1));
+SingleUse<byte[]> su = ops.authenticateThenDecrypt(token, 1);
 byte[] payload = su.value();
 ```
 
@@ -150,6 +154,8 @@ it consumes strictly and discards the handle, so there is no retry path.
 - **Tampering** — any change to a token's parts invalidates the HMAC
   (compared with `MessageDigest.isEqual`, constant-time).
 - **Replay** — when `attempts >= 1`, a decoded token is blocked from reuse.
+  The denylist entry lives until the token's own (issuance-committed) expiry,
+  so a consumed token cannot outlive its denylist record.
 - **Disclosure of the payload** — in `AUTHENTICATED_ENCRYPTED` mode only.
 
 **Assumptions**

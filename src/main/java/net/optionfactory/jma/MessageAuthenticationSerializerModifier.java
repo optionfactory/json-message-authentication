@@ -19,10 +19,11 @@ public class MessageAuthenticationSerializerModifier extends ValueSerializerModi
         if (annotation == null) {
             return serializer;
         }
+        final var validity = annotation.unit().getDuration().multipliedBy(annotation.validity());
         if (annotation.mode() == MessageAuthentication.Mode.AUTHENTICATED) {
-            return new MessageAuthenticationSerializer(ops, serializer);
+            return new MessageAuthenticationSerializer(ops, validity, serializer);
         }
-        return new MessageAuthenticationEncryptedSerializer(ops, serializer);
+        return new MessageAuthenticationEncryptedSerializer(ops, validity, serializer);
     }
 
 }
