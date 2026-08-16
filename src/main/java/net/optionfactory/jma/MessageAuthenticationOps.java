@@ -46,6 +46,12 @@ public class MessageAuthenticationOps {
     private final int ivLength = 16;
     private final int saltLength = 12;
 
+    /// Domain-separation tags, MAC'd as the first byte of input so that tokens
+    /// of the two modes can never authenticate for each other, independently
+    /// of nonce lengths.
+    private static final byte AUTHENTICATED_TAG = 0x01;
+    private static final byte ENCRYPTED_TAG = 0x02;
+
     public MessageAuthenticationOps(ConsumedTokenStore consumedTokenStore, SecretKeySpec aesKey, SecretKeySpec hmacKey, SecureRandom random, Supplier<Long> clock) {
         this.consumedTokenStore = consumedTokenStore;
         this.aesKey = aesKey;
@@ -144,6 +150,7 @@ public class MessageAuthenticationOps {
             final var cipherText = initAesCbcPkcs7(iv, Cipher.ENCRYPT_MODE).doFinal(clearText);
 
             final var mac = initHmacSha256();
+            mac.update(ENCRYPTED_TAG);
             mac.update(iv);
             mac.update(encodeWindow(createdAt, validityMs));
             final var computedHmac = mac.doFinal(cipherText);
@@ -187,6 +194,7 @@ public class MessageAuthenticationOps {
         final var window = decodeWindow(windowBytes, split[1]);
 
         final var mac = initHmacSha256();
+        mac.update(ENCRYPTED_TAG);
         mac.update(iv);
         mac.update(windowBytes);
         final var computedMessageHmac = mac.doFinal(cipherText);
@@ -224,6 +232,7 @@ public class MessageAuthenticationOps {
         final var createdAt = clock.get();
         final var salt = randomBytes(saltLength);
         final var mac = initHmacSha256();
+        mac.update(AUTHENTICATED_TAG);
         mac.update(salt);
         mac.update(encodeWindow(createdAt, validityMs));
         final var computedHmacValue = mac.doFinal(clearText);
@@ -270,6 +279,7 @@ public class MessageAuthenticationOps {
         final var window = decodeWindow(windowBytes, split[1]);
 
         final var mac = initHmacSha256();
+        mac.update(AUTHENTICATED_TAG);
         mac.update(salt);
         mac.update(windowBytes);
         final var computedHmacValue = mac.doFinal(clearText);

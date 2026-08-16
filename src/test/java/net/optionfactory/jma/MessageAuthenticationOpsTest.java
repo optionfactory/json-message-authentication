@@ -86,6 +86,18 @@ public class MessageAuthenticationOpsTest {
     }
 
     @Test
+    public void encryptedTokenIsRejectedByAuthenticatedDecoder() {
+        final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8), Duration.ofSeconds(60));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(token, 1));
+    }
+
+    @Test
+    public void authenticatedTokenIsRejectedByEncryptedDecoder() {
+        final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8), Duration.ofSeconds(60));
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(token, 1));
+    }
+
+    @Test
     public void authenticatedTamperingSaltThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8), Duration.ofSeconds(60));
         Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(tamper(token, 0), 1));
