@@ -139,6 +139,7 @@ public class MessageAuthenticationOps {
     public SingleUse<byte[]> authenticateThenDecrypt(String value, Duration validity, int attempts) {
         require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
         require(attempts >= 0, "attempts must be >= 0");
+        TokenMalformed.enforce(value != null, "missing token");
         final long validityMs = validity.toMillis();
         final var split = value.split("\\.");
         TokenMalformed.enforce(split.length == 4, "invalid parts");
@@ -215,6 +216,7 @@ public class MessageAuthenticationOps {
     public SingleUse<byte[]> verifyAndDecode(String authenticated, Duration validity, int attempts) {
         require(validity != null && !validity.isZero() && !validity.isNegative(), "invalid validity duration");
         require(attempts >= 0, "attempts must be >= 0");
+        TokenMalformed.enforce(authenticated != null, "missing token");
         final long validityMs = validity.toMillis();
         final var split = authenticated.split("\\.");
         TokenMalformed.enforce(split.length == 4, "invalid parts");

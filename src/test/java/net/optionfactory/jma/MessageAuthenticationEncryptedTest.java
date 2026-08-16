@@ -89,6 +89,28 @@ public class MessageAuthenticationEncryptedTest {
     }
 
     @Test
+    public void objectWhereTokenExpectedThrowsTokenMalformed() {
+        final var thrown = Assertions.assertThrows(Exception.class, () -> mapper.readValue("{\"toBeEncrypted\":{\"a\":1}}", RecordWithString.class));
+        Assertions.assertTrue(isTokenMalformed(thrown), "expected TokenMalformed, got: " + thrown);
+    }
+
+    @Test
+    public void arrayWhereTokenExpectedThrowsTokenMalformed() {
+        final var thrown = Assertions.assertThrows(Exception.class, () -> mapper.readValue("{\"toBeEncrypted\":[1,2]}", RecordWithString.class));
+        Assertions.assertTrue(isTokenMalformed(thrown), "expected TokenMalformed, got: " + thrown);
+    }
+
+    private static boolean isTokenMalformed(Throwable t) {
+        while (t != null) {
+            if (t instanceof TokenMalformed) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
+    @Test
     public void expiredAnnotatedFieldFailsToDeserialize() {
         final var now = new AtomicLong(1_000_000L);
         final var maops = MessageAuthenticationOps.create(

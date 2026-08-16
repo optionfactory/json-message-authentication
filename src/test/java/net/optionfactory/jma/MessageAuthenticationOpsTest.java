@@ -152,6 +152,16 @@ public class MessageAuthenticationOpsTest {
     }
 
     @Test
+    public void nullAuthenticatedTokenThrowsTokenMalformed() {
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(null, Duration.ofSeconds(60), 1));
+    }
+
+    @Test
+    public void nullEncryptedTokenThrowsTokenMalformed() {
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(null, Duration.ofSeconds(60), 1));
+    }
+
+    @Test
     public void nonNumericTimestampThrowsTokenMalformed() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
         final var parts = token.split("\\.");

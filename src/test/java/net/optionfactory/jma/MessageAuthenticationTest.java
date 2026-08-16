@@ -66,6 +66,28 @@ public class MessageAuthenticationTest {
 
     }
 
+    @Test
+    public void arrayWhereTokenExpectedThrowsTokenMalformed() {
+        final var thrown = Assertions.assertThrows(Exception.class, () -> mapper.readValue("{\"toBeAuthenticated\":[1,2]}", RecordWithString.class));
+        Assertions.assertTrue(isTokenMalformed(thrown), "expected TokenMalformed, got: " + thrown);
+    }
+
+    @Test
+    public void nonStringAuthmsgThrowsTokenMalformed() {
+        final var thrown = Assertions.assertThrows(Exception.class, () -> mapper.readValue("{\"toBeAuthenticated\":{\"authmsg\":{\"a\":1}}}", RecordWithString.class));
+        Assertions.assertTrue(isTokenMalformed(thrown), "expected TokenMalformed, got: " + thrown);
+    }
+
+    private static boolean isTokenMalformed(Throwable t) {
+        while (t != null) {
+            if (t instanceof TokenMalformed) {
+                return true;
+            }
+            t = t.getCause();
+        }
+        return false;
+    }
+
     public record RecordWithAnnotatedObject(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED) AnnotatedObject toBeAuthenticated) {
 
     }
