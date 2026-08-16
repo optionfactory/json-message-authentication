@@ -184,7 +184,7 @@ it consumes strictly and discards the handle, so there is no retry path.
 **What this does not do**
 
 - It does not replace TLS, authenticate a *user*, or carry identity/claims (the
-  token holds only a timestamp).
+  token holds only a creation timestamp and a validity).
 - It does not provide key management or rotation.
 - It does not protect against an attacker who has obtained the keys.
 
@@ -193,6 +193,17 @@ it consumes strictly and discards the handle, so there is no retry path.
 - `recycle()` deliberately re-opens a decode slot, which is a brief replay window
   (bounded by `attempts`); use the smallest budget that meets your retry needs and
   keep `validity` short.
+- `attempts` bounds decodes **net of refunds**: the invariant is
+  `decodes − refunds ≤ attempts`, not "at most `attempts` decodes, ever". When
+  upstream failures interleave with retries, a token can legitimately be *seen*
+  decoding more than `attempts` times in logs and metrics — each refund
+  corresponds to a decode whose guarded action never ran. What stays bounded is
+  the number of decodes whose action may have executed, and the token is blocked
+  once an action succeeds. Don't alert on raw decode counts; alert on
+  non-refunded consumption.
+- `refund()` after a *successful* action re-opens the token with no budget bound —
+  this is caller misuse, not an attacker-triggerable condition, but treat any
+  refund call site as security-sensitive code.
 - The bundled `InMemoryConsumedTokenStore` is **per-instance** — its state is not
   shared across processes. For a multi-instance deployment, implement
   `ConsumedTokenStore` against a shared store (e.g. Postgres) so consumption is
