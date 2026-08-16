@@ -170,6 +170,30 @@ public class MessageAuthenticationOpsTest {
     }
 
     @Test
+    public void leadingZeroTimestampThrowsTokenMalformed() {
+        final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
+        final var parts = token.split("\\.");
+        parts[1] = "0" + parts[1];
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(String.join(".", parts), Duration.ofSeconds(60), 1));
+    }
+
+    @Test
+    public void plusSignedTimestampThrowsTokenMalformed() {
+        final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
+        final var parts = token.split("\\.");
+        parts[1] = "+" + parts[1];
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.verifyAndDecode(String.join(".", parts), Duration.ofSeconds(60), 1));
+    }
+
+    @Test
+    public void encryptedLeadingZeroTimestampThrowsTokenMalformed() {
+        final var token = maops.encryptThenAuthenticate("hello".getBytes(StandardCharsets.UTF_8));
+        final var parts = token.split("\\.");
+        parts[1] = "0" + parts[1];
+        Assertions.assertThrows(TokenMalformed.class, () -> maops.authenticateThenDecrypt(String.join(".", parts), Duration.ofSeconds(60), 1));
+    }
+
+    @Test
     public void nullValidityIsRejectedAsIllegalArgument() {
         final var token = maops.authenticate("hello".getBytes(StandardCharsets.UTF_8));
         Assertions.assertThrows(IllegalArgumentException.class, () -> maops.verifyAndDecode(token, null, 1));

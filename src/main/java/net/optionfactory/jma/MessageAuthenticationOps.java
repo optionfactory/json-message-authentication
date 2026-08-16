@@ -160,6 +160,7 @@ public class MessageAuthenticationOps {
 
         final var now = clock.get();
         TokenMalformed.enforce(iv.length == ivLength, "invalid iv");
+        TokenMalformed.enforce(split[1].equals(Long.toString(createdAt)), "invalid createdAt");
         final var expiresAt = createdAt + validityMs;
         TokenExpired.enforce(expiresAt > now, "expired");
 
@@ -237,6 +238,7 @@ public class MessageAuthenticationOps {
 
         final var now = clock.get();
         TokenMalformed.enforce(salt.length == saltLength, "invalid salt");
+        TokenMalformed.enforce(split[1].equals(Long.toString(createdAt)), "invalid createdAt");
         final var expiresAt = createdAt + validityMs;
         TokenExpired.enforce(expiresAt > now, "expired");
 
