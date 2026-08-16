@@ -213,11 +213,21 @@ public class MessageAuthenticationOps {
         }
 
         if (attempts == 0) {
-            return new SingleUse<>(clearText, () -> {});
+            return new SingleUse<>(clearText, SingleUse.Usage.NONE);
         }
         final var messageId = split[3];
         TokenAlreadyUsed.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
-        return new SingleUse<>(clearText, () -> TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
+        return new SingleUse<>(clearText, new SingleUse.Usage() {
+            @Override
+            public void recycle() {
+                TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left");
+            }
+
+            @Override
+            public void refund() {
+                consumedTokenStore.refund(messageId);
+            }
+        });
     }
 
     /// Produces an authenticated (integrity-only) token. The payload is embedded
@@ -291,11 +301,21 @@ public class MessageAuthenticationOps {
         TokenExpired.enforce(expiresAt > now, "expired");
 
         if (attempts == 0) {
-            return new SingleUse<>(clearText, () -> {});
+            return new SingleUse<>(clearText, SingleUse.Usage.NONE);
         }
         final var messageId = split[3];
         TokenAlreadyUsed.enforce(this.consumedTokenStore.consume(messageId, expiresAt), "message already used");
-        return new SingleUse<>(clearText, () -> TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left"));
+        return new SingleUse<>(clearText, new SingleUse.Usage() {
+            @Override
+            public void recycle() {
+                TokenDepleted.enforce(consumedTokenStore.recycle(messageId, attempts), "no attempts left");
+            }
+
+            @Override
+            public void refund() {
+                consumedTokenStore.refund(messageId);
+            }
+        });
     }
 
     /// Decodes the 16-byte window into a [Window], rejecting non-canonical

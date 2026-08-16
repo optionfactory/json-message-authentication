@@ -8,10 +8,11 @@ import tools.jackson.databind.deser.Deserializers;
 import tools.jackson.core.JsonParser;
 
 /// Deserializes a {@code SingleUse<T>} by decoding {@code T} while collecting
-/// every per-field recycler into an [Accumulator]. The resulting
-/// [SingleUse] wraps the decoded bean and a composite recycler that recycles
-/// ALL tokens consumed for the bean. If decoding {@code T} fails partway, the
-/// already-consumed tokens are recycled (rolled back) before rethrowing.
+/// every per-field usage into an [Accumulator]. The resulting [SingleUse]
+/// wraps the decoded bean and a composite usage whose `recycle`/`refund`
+/// applies to ALL tokens consumed for the bean. If decoding {@code T} fails
+/// partway, the already-consumed tokens are refunded (rolled back as if never
+/// consumed) before rethrowing.
 public class SingleUseDeserializer extends ValueDeserializer<Object> {
 
     private final JavaType innerType;
@@ -44,9 +45,19 @@ public class SingleUseDeserializer extends ValueDeserializer<Object> {
         try {
             final ValueDeserializer<Object> inner = (ValueDeserializer<Object>) context.findContextualValueDeserializer(innerType, null);
             final var bean = inner.deserialize(parser, context);
-            return new SingleUse<>(bean, accumulator::recycleAll);
+            return new SingleUse<>(bean, new SingleUse.Usage() {
+                @Override
+                public void recycle() {
+                    accumulator.recycleConstituents();
+                }
+
+                @Override
+                public void refund() {
+                    accumulator.refundConstituents();
+                }
+            });
         } catch (RuntimeException e) {
-            accumulator.rollback();
+            accumulator.refundConstituents();
             throw e;
         } finally {
             context.setAttribute(Accumulator.KEY, previous);

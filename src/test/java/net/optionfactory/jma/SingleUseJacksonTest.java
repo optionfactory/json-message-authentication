@@ -254,6 +254,37 @@ public class SingleUseJacksonTest {
         Assertions.assertThrows(Exception.class, () -> mapper.readValue(mapper.writeValueAsString(root), TWO));
     }
 
+    public record StrictThenRetryable(@MessageAuthentication(mode = Mode.AUTHENTICATED, attempts = 1) String strict, @MessageAuthentication(mode = Mode.AUTHENTICATED, attempts = 3) String other) {
+    }
+
+    private static final TypeReference<SingleUse<StrictThenRetryable>> STRICT_THEN_RETRYABLE = new TypeReference<>() {
+    };
+
+    @Test
+    public void deserializationFailureRefundsStrictTokens() {
+        final var json = mapper.writeValueAsString(new StrictThenRetryable("s", "o"));
+        final JsonNode root = mapper.readTree(json);
+        final String strictToken = root.get("strict").get("authmsg").asString();
+        // tamper the second token so the bean decode fails after the strict one was consumed
+        final var other = new StringBuilder(root.get("other").get("authmsg").asString());
+        other.setCharAt(0, other.charAt(0) == 'A' ? 'B' : 'A');
+        ((ObjectNode) root.get("other")).put("authmsg", other.toString());
+        Assertions.assertThrows(Exception.class, () -> mapper.readValue(mapper.writeValueAsString(root), STRICT_THEN_RETRYABLE));
+        // the strict token was refunded by rollback: it is decodable again exactly once
+        final var su = ops.verifyAndDecode(strictToken, 1);
+        Assertions.assertEquals("\"s\"", new String(su.value(), StandardCharsets.UTF_8));
+    }
+
+    @Test
+    public void beanLevelRefundRestoresStrictConstituent() {
+        final var json = mapper.writeValueAsString(new StrictThenRetryable("s", "o"));
+        final SingleUse<StrictThenRetryable> su = mapper.readValue(json, STRICT_THEN_RETRYABLE);
+        Assertions.assertThrows(TokenDepleted.class, su::recycle, "a strict constituent cannot be recycled");
+        su.refund();
+        final SingleUse<StrictThenRetryable> retry = mapper.readValue(json, STRICT_THEN_RETRYABLE);
+        Assertions.assertEquals(new StrictThenRetryable("s", "o"), retry.value());
+    }
+
     @Test
     public void recycleCanBeInvokedMultipleTimesIdempotently() {
         final var json = mapper.writeValueAsString(new TwoFields("a", "b"));
@@ -298,7 +329,7 @@ public class SingleUseJacksonTest {
 
     @Test
     public void nestedSingleUseHandlesStayIndependent() {
-        final var json = mapper.writeValueAsString(new Wrapper(new SingleUse<>(new TwoFields("a", "b"), () -> {})));
+        final var json = mapper.writeValueAsString(new Wrapper(new SingleUse<>(new TwoFields("a", "b"), SingleUse.Usage.NONE)));
         final var wrapped = mapper.readValue(json, Wrapper.class);
         final SingleUse<TwoFields> inner = wrapped.nested();
         // the inner handle owns only the bean's tokens: recycling re-opens them...

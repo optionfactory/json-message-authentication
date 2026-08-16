@@ -79,6 +79,22 @@ public class InMemoryConsumedTokenStore implements ConsumedTokenStore {
         }
     }
 
+    @Override
+    public boolean refund(String messageId) {
+        for (;;) {
+            final State prev = store.get(messageId);
+            if (prev == null) {
+                return false;
+            }
+            if (prev.consumed() == 0) {
+                return true;
+            }
+            if (store.replace(messageId, prev, new State(prev.expiresAt(), prev.consumed() - 1, false))) {
+                return true;
+            }
+        }
+    }
+
     private void cleanupExpired(long now) {
         if (!isCleaning.compareAndSet(false, true)) {
             return;

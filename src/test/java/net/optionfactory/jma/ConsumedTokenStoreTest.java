@@ -53,6 +53,40 @@ public class ConsumedTokenStoreTest {
     }
 
     @Test
+    public void refundRestoresVirginStateForStrictToken() {
+        final var store = new InMemoryConsumedTokenStore(() -> 0L);
+        store.consume("a", 1000L);
+        Assertions.assertTrue(store.refund("a"));
+        Assertions.assertTrue(store.consume("a", 1000L), "token is decodable again: virgin state");
+        Assertions.assertFalse(store.consume("a", 1000L), "and strictly single-use again");
+        Assertions.assertFalse(store.recycle("a", 1), "the restored budget is fully spent by the second consume");
+    }
+
+    @Test
+    public void refundIsIdempotent() {
+        final var store = new InMemoryConsumedTokenStore(() -> 0L);
+        store.consume("a", 1000L);
+        Assertions.assertTrue(store.refund("a"));
+        Assertions.assertTrue(store.refund("a"));
+    }
+
+    @Test
+    public void refundRejectsUnknownToken() {
+        final var store = new InMemoryConsumedTokenStore(() -> 0L);
+        Assertions.assertFalse(store.refund("nope"));
+    }
+
+    @Test
+    public void repeatedRefundsGrantNoExtraDecodes() {
+        final var store = new InMemoryConsumedTokenStore(() -> 0L);
+        store.consume("a", 1000L);
+        store.refund("a");
+        store.refund("a");
+        Assertions.assertTrue(store.consume("a", 1000L));
+        Assertions.assertFalse(store.consume("a", 1000L), "a double refund does not buy a second decode");
+    }
+
+    @Test
     public void recycleRejectsUnknownToken() {
         final var store = new InMemoryConsumedTokenStore(() -> 0L);
         Assertions.assertFalse(store.recycle("nope", 3));

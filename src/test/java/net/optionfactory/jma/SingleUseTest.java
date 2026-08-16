@@ -34,6 +34,46 @@ public class SingleUseTest {
     }
 
     @Test
+    public void refundRestoresStrictSingleUseToken() {
+        final var payload = "hello".getBytes(StandardCharsets.UTF_8);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
+        final var first = maops.verifyAndDecode(token, 1);
+        Assertions.assertArrayEquals(payload, first.value());
+        first.refund();
+        final var second = maops.verifyAndDecode(token, 1);
+        Assertions.assertArrayEquals(payload, second.value());
+    }
+
+    @Test
+    public void encryptedRefundRestoresStrictToken() {
+        final var payload = "hello".getBytes(StandardCharsets.UTF_8);
+        final var token = maops.encryptThenAuthenticate(payload, Duration.ofSeconds(5));
+        maops.authenticateThenDecrypt(token, 1).refund();
+        final var second = maops.authenticateThenDecrypt(token, 1);
+        Assertions.assertArrayEquals(payload, second.value());
+    }
+
+    @Test
+    public void refundIsIdempotentAtTheHandleLevel() {
+        final var payload = "hello".getBytes(StandardCharsets.UTF_8);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
+        final var first = maops.verifyAndDecode(token, 3);
+        first.refund();
+        first.refund();
+        final var second = maops.verifyAndDecode(token, 3);
+        Assertions.assertArrayEquals(payload, second.value());
+    }
+
+    @Test
+    public void refundDoesNotExtendBudgetBeyondConsumes() {
+        final var payload = "hello".getBytes(StandardCharsets.UTF_8);
+        final var token = maops.authenticate(payload, Duration.ofSeconds(5));
+        maops.verifyAndDecode(token, 1).refund();
+        maops.verifyAndDecode(token, 1);
+        Assertions.assertThrows(TokenAlreadyUsed.class, () -> maops.verifyAndDecode(token, 1));
+    }
+
+    @Test
     public void secondDecodeWithoutRecycleThrowsTokenAlreadyUsed() {
         final var payload = "hello".getBytes(StandardCharsets.UTF_8);
         final var token = maops.authenticate(payload, Duration.ofSeconds(5));

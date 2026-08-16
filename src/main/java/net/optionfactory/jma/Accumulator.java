@@ -7,24 +7,24 @@ final class Accumulator {
 
     static final Object KEY = Accumulator.class;
 
-    private final List<SingleUse.Recycler> recyclers = new ArrayList<>();
+    private final List<SingleUse.Usage> usages = new ArrayList<>();
 
     static void register(tools.jackson.databind.DeserializationContext context, SingleUse<?> singleUse) {
         final var acc = (Accumulator) context.getAttribute(KEY);
         if (acc != null) {
-            acc.add(singleUse.recycler());
+            acc.add(singleUse.usage());
         }
     }
 
-    void add(SingleUse.Recycler recycler) {
-        recyclers.add(recycler);
+    void add(SingleUse.Usage usage) {
+        usages.add(usage);
     }
 
-    void recycleAll() {
+    void recycleConstituents() {
         MessageAuthenticationError firstFailure = null;
-        for (final var r : recyclers) {
+        for (final var u : usages) {
             try {
-                r.recycle();
+                u.recycle();
             } catch (MessageAuthenticationError e) {
                 if (firstFailure == null) {
                     firstFailure = e;
@@ -36,10 +36,14 @@ final class Accumulator {
         }
     }
 
-    void rollback() {
-        for (final var r : recyclers) {
+    /// Refunds every constituent token. Lenient by design: deserialization
+    /// failed, so the guarded action never ran and nothing should stay
+    /// consumed — including strict (`attempts = 1`) tokens, which cannot be
+    /// recycled.
+    void refundConstituents() {
+        for (final var u : usages) {
             try {
-                r.recycle();
+                u.refund();
             } catch (RuntimeException ignored) {
             }
         }

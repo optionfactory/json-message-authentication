@@ -85,15 +85,28 @@ byte[] payload = su.value();
 - `1` — **strict** single-use: one decode, no retry.
 - `N` — up to `N` decodes.
 
-Decoding consumes one attempt and denylists the token. If the operation that used the
-decoded value fails, call `SingleUse.recycle()` to re-enable (remove from denylist) one more decode:
+Decoding consumes one attempt and denylists the token. Two recovery actions
+exist, for two different failures:
+
+- `recycle()` — the guarded action **ran and failed**: the token is un-blocked
+  for one more decode, but the attempt stays spent. Bounded by `attempts`
+  (throws `TokenDepleted` when the budget is exhausted).
+- `refund()` — an **upstream failure prevented the action from running at all**
+  (e.g. the database was down, so nothing happened): the attempt is given back
+  and the token returns to a virgin state — even a strict (`attempts = 1`)
+  token. Use it only when the token-warded action certainly did not execute:
+  refunding after a *successful* action re-opens the token with **no budget
+  bound**.
 
 ```java
-SingleUse<Foo> su = ops.authenticateThenDecrypt(token, validity, 3);
+SingleUse<Foo> su = ops.authenticateThenDecrypt(token, 1);
 try {
     doSomething(su.value());
-} catch (Exception e) {
-    su.recycle();   // give one attempt back so the caller can retry
+} catch (ActionFailedException e) {
+    su.recycle();   // action ran and failed: retry within the budget
+    throw e;
+} catch (UpstreamUnavailableException e) {
+    su.refund();    // action never ran: give the attempt back
     throw e;
 }
 // success → do nothing; the token stays blocked
@@ -102,10 +115,11 @@ try {
 ### Aggregated retry for a bean (`SingleUse<Bean>`)
 
 A bean may carry several `@MessageAuthentication` fields (including nested ones).
-Deserialize as `SingleUse<Bean>` to obtain **one** handle whose `recycle()`
-re-enables *all* of the bean's tokens. If deserialization fails partway, the
-already-consumed tokens are recycled automatically (rolled back) before the error
-propagates.
+Deserialize as `SingleUse<Bean>` to obtain **one** handle whose `recycle()` /
+`refund()` applies to *all* of the bean's tokens. If deserialization fails
+partway, the already-consumed tokens are **refunded** (rolled back as if never
+consumed) before the error propagates — so even a strict (`attempts = 1`) field
+is not burned by a malformed request.
 
 ```java
 SingleUse<MyBean> su = mapper.readValue(json, new TypeReference<SingleUse<MyBean>>(){});
@@ -142,10 +156,11 @@ static class ConfirmController {
 
 `body.value()` is the decoded bean; `body.recycle()` re-enables all of its tokens
 at once. If deserialization itself fails (e.g. a replayed or expired token),
-consumption is rolled back and the request fails normally — no token is burned.
+consumption is refunded (rolled back as if never consumed) and the request fails
+normally — no token is burned, not even a strict one.
 
 If the bean contains a strict (`attempts = 1`) field, `recycle()` throws — such a
-bean is not retryable.
+bean is not retryable. `refund()` still works: it does not need retry budget.
 
 Plain `mapper.readValue(json, MyBean.class)` (without `SingleUse`) still works;
 it consumes strictly and discards the handle, so there is no retry path.
