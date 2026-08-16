@@ -53,6 +53,8 @@ public class MessageAuthenticationOps {
     private static final byte ENCRYPTED_TAG = 0x02;
 
     public MessageAuthenticationOps(ConsumedTokenStore consumedTokenStore, SecretKeySpec aesKey, SecretKeySpec hmacKey, SecureRandom random, Supplier<Long> clock) {
+        require("AES".equals(aesKey.getAlgorithm()) && aesKey.getEncoded().length == 32, "aesKey must be AES 32B long");
+        require("HmacSHA256".equals(hmacKey.getAlgorithm()) && hmacKey.getEncoded().length == 64, "hmacKey must be HmacSHA256 64B long");
         this.consumedTokenStore = consumedTokenStore;
         this.aesKey = aesKey;
         this.hmacKey = hmacKey;
@@ -68,8 +70,6 @@ public class MessageAuthenticationOps {
     /// @param random             source of nonces/IVs.
     /// @param clock              millisecond clock used for token timestamps/expiry.
     public static MessageAuthenticationOps create(ConsumedTokenStore consumedTokenStore, byte[] aesKey, byte[] hmacKey, SecureRandom random, Supplier<Long> clock) {
-        require(aesKey.length == 32, "aesKey must be 32B long");
-        require(hmacKey.length == 64, "hmacKey is not 64B long");
         return new MessageAuthenticationOps(
                 consumedTokenStore,
                 new SecretKeySpec(aesKey, "AES"),

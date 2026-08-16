@@ -5,6 +5,7 @@ import java.security.SecureRandom;
 import java.time.Duration;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicLong;
+import javax.crypto.spec.SecretKeySpec;
 import net.optionfactory.jma.MessageAuthenticationOps.KeyEncoding;
 import net.optionfactory.jma.stores.InMemoryConsumedTokenStore;
 import org.junit.jupiter.api.Assertions;
@@ -256,6 +257,24 @@ public class MessageAuthenticationOpsTest {
         Assertions.assertThrows(IllegalArgumentException.class, () -> MessageAuthenticationOps.create(
                 new InMemoryConsumedTokenStore(() -> 0L),
                 new byte[32], new byte[32], new SecureRandom(), () -> 0L));
+    }
+
+    @Test
+    public void constructorRejectsWrongAesAlgorithmAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new MessageAuthenticationOps(
+                new InMemoryConsumedTokenStore(() -> 0L),
+                new SecretKeySpec(new byte[32], "AES/GCM/NoPadding"),
+                new SecretKeySpec(new byte[64], "HmacSHA256"),
+                new SecureRandom(), () -> 0L));
+    }
+
+    @Test
+    public void constructorRejectsWrongHmacAlgorithmAsIllegalArgument() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> new MessageAuthenticationOps(
+                new InMemoryConsumedTokenStore(() -> 0L),
+                new SecretKeySpec(new byte[32], "AES"),
+                new SecretKeySpec(new byte[64], "HmacSHA384"),
+                new SecureRandom(), () -> 0L));
     }
 
     private static String tamper(String token, int part) {
