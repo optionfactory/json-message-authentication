@@ -9,6 +9,7 @@ import net.optionfactory.jma.stores.InMemoryConsumedTokenStore;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.json.JsonMapper;
 
 public class MessageAuthenticationEncryptedTest {
@@ -26,6 +27,13 @@ public class MessageAuthenticationEncryptedTest {
     public record NestedObject(String value1, String value2, String value3) {
 
     }
+
+    public static class GenericWrapper<T> {
+
+        @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED)
+        public T value;
+    }
+
     @BeforeEach
     public void setup() {
         final var maops = MessageAuthenticationOps.create(
@@ -66,6 +74,19 @@ public class MessageAuthenticationEncryptedTest {
         Assertions.assertEquals(src.toBeEncrypted().value1(), got.toBeEncrypted().value1());
         Assertions.assertEquals(src.toBeEncrypted().value2(), got.toBeEncrypted().value2());
         Assertions.assertEquals(src.toBeEncrypted().value3(), got.toBeEncrypted().value3());
+    }
+
+    @Test
+    public void genericFieldIsDecodedAsItsResolvedType() {
+        final var src = new GenericWrapper<NestedObject>();
+        src.value = new NestedObject("11111", "22222", "33333");
+
+        final var out = mapper.writeValueAsString(src);
+        final var got = mapper.readValue(out, new TypeReference<GenericWrapper<NestedObject>>() {
+        });
+
+        Assertions.assertFalse(out.contains(src.value.value1()));
+        Assertions.assertEquals(src.value, got.value);
     }
 
     public record RecordWithStrictAttempts(String field, @MessageAuthentication(mode = Mode.AUTHENTICATED_ENCRYPTED, attempts = 1) String toBeEncrypted) {
